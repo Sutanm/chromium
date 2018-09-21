@@ -6774,6 +6774,10 @@ WebView* RenderFrameImpl::CreateNewWindow(
           request.HasUserGesture(), GetWebFrame()->IsAdFrame(),
           GetWebFrame()->IsAdScriptInStack());
 
+  params->raw_features = features.raw_features.Utf8(
+      blink::Utf8ConversionMode::kStrictReplacingErrors);
+  params->body = GetRequestBodyForWebURLRequest(request);
+
   // We preserve this information before sending the message since |params| is
   // moved on send.
   bool is_background_tab =
