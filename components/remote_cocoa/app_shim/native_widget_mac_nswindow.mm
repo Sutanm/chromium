@@ -21,6 +21,7 @@
 #import "components/remote_cocoa/app_shim/views_nswindow_delegate.h"
 #import "components/remote_cocoa/app_shim/window_touch_bar_delegate.h"
 #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+#include "electron/mas.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
 #import "ui/base/cocoa/user_interface_item_command_handler.h"
 #import "ui/base/cocoa/window_size_constants.h"
@@ -108,20 +109,24 @@ void OrderChildWindow(NSWindow* child_window,
 
 }  // namespace
 
+#if !IS_MAS_BUILD()
 @interface NSNextStepFrame (Private)
 - (instancetype)initWithFrame:(NSRect)frame
                     styleMask:(NSUInteger)styleMask
                         owner:(id)owner;
 @end
+#endif
 
 @interface NSWindow (Private)
+#if !IS_MAS_BUILD()
 + (Class)frameViewClassForStyleMask:(NSWindowStyleMask)windowStyle;
-- (BOOL)hasKeyAppearance;
 - (long long)_resizeDirectionForMouseLocation:(CGPoint)location;
 - (BOOL)_isConsideredOpenForPersistentState;
 - (void)_zoomToScreenEdge:(NSUInteger)edge;
 - (void)_removeFromGroups:(NSWindow*)window;
 - (BOOL)_isNonactivatingPanel;
+#endif
+- (BOOL)hasKeyAppearance;
 @end
 
 struct NSEdgeAndCornerThicknesses {
@@ -158,12 +163,29 @@ struct NSEdgeAndCornerThicknesses {
 @implementation NSView (CRFrameViewAdditions)
 // If a mouseDown: falls through to the frame view, turn it into a window drag.
 - (void)cr_mouseDownOnFrameView:(NSEvent*)event {
+#if !IS_MAS_BUILD()
   if ([self.window _resizeDirectionForMouseLocation:event.locationInWindow] !=
       -1)
     return;
+#else
+  // For MAS builds, approximate the resize direction check.
+  if (self.window.styleMask & NSWindowStyleMaskResizable) {
+    constexpr CGFloat kResizeThreshold = 5.0;
+    NSPoint location = event.locationInWindow;
+    NSRect frame = self.window.frame;
+    CGFloat width = NSWidth(frame);
+    CGFloat height = NSHeight(frame);
+    if (location.x < kResizeThreshold || location.x > width - kResizeThreshold ||
+        location.y < kResizeThreshold || location.y > height - kResizeThreshold) {
+      return;
+    }
+  }
+#endif
   [self.window performWindowDragWithEvent:event];
 }
 @end
+
+#if !IS_MAS_BUILD()
 
 @implementation NativeWidgetMacNSWindowTitledFrame
 - (void)mouseDown:(NSEvent*)event {
@@ -191,6 +213,8 @@ struct NSEdgeAndCornerThicknesses {
   return NO;
 }
 @end
+
+#endif  // MAS_BUILD
 
 @implementation NativeWidgetMacNSWindow {
  @private
@@ -241,6 +265,7 @@ struct NSEdgeAndCornerThicknesses {
 // bubbles and the find bar, but these should not be movable.
 // Instead, let's push this up to the parent window which should be
 // the browser.
+#if !IS_MAS_BUILD()
 - (void)_zoomToScreenEdge:(NSUInteger)edge {
   if (self.parentWindow) {
     [self.parentWindow _zoomToScreenEdge:edge];
@@ -248,6 +273,7 @@ struct NSEdgeAndCornerThicknesses {
     [super _zoomToScreenEdge:edge];
   }
 }
+#endif
 
 // This override helps diagnose lifetime issues in crash stacktraces by
 // inserting a symbol on NativeWidgetMacNSWindow and should be kept even if it
@@ -389,6 +415,8 @@ struct NSEdgeAndCornerThicknesses {
 
 // NSWindow overrides.
 
+#if !IS_MAS_BUILD()
+
 + (Class)frameViewClassForStyleMask:(NSWindowStyleMask)windowStyle {
   if (windowStyle & NSWindowStyleMaskTitled) {
     if (Class customFrame = [NativeWidgetMacNSWindowTitledFrame class])
@@ -399,6 +427,8 @@ struct NSEdgeAndCornerThicknesses {
   }
   return [super frameViewClassForStyleMask:windowStyle];
 }
+
+#endif
 
 - (BOOL)_isTitleHidden {
   bool shouldShowWindowTitle = YES;
@@ -424,12 +454,14 @@ struct NSEdgeAndCornerThicknesses {
 // if it were valid to set that style for windows, setting the window style
 // recalculates and re-caches a bunch of stuff, so a surgical override is the
 // cleanest approach.
+#if !IS_MAS_BUILD()
 - (BOOL)_isNonactivatingPanel {
   if (_activationIndependence) {
     return YES;
   }
   return [super _isNonactivatingPanel];
 }
+#endif
 
 + (void)_getExteriorResizeEdgeThicknesses:
             (NSEdgeAndCornerThicknesses*)outThicknesses
@@ -683,9 +715,11 @@ struct NSEdgeAndCornerThicknesses {
 }
 
 - (void)saveRestorableState {
+#if !IS_MAS_BUILD()
   if (!_bridge || ![self _isConsideredOpenForPersistentState]) {
     return;
   }
+#endif
 
   // Certain conditions, such as in the Speedometer 3 benchmark, can trigger a
   // rapid succession of calls to saveRestorableState. If there's no pending
@@ -752,6 +786,7 @@ struct NSEdgeAndCornerThicknesses {
 // affects its restorable state changes.
 - (void)invalidateRestorableState {
   [super invalidateRestorableState];
+#if !IS_MAS_BUILD()
   if ([self _isConsideredOpenForPersistentState]) {
     if (_willUpdateRestorableState)
       return;
@@ -764,6 +799,7 @@ struct NSEdgeAndCornerThicknesses {
     _willUpdateRestorableState = NO;
     [NSObject cancelPreviousPerformRequestsWithTarget:self];
   }
+#endif
 }
 
 // On newer SDKs, _canMiniaturize respects NSWindowStyleMaskMiniaturizable in
@@ -928,6 +964,7 @@ struct NSEdgeAndCornerThicknesses {
   // Since _removeFromGroups: is not documented it could go away in newer
   // versions of macOS. If the selector does not exist, DumpWithoutCrashing() so
   // we hear about the change.
+#if !IS_MAS_BUILD()
   if (![NSWindow instancesRespondToSelector:@selector(_removeFromGroups:)]) {
     base::debug::DumpWithoutCrashing();
     return;
@@ -945,6 +982,7 @@ struct NSEdgeAndCornerThicknesses {
       [currentWindow _removeFromGroups:child];
     }
   }
+#endif
 }
 
 - (NSWindow*)rootWindow {
