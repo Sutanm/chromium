@@ -669,6 +669,7 @@ static_library("test_support") {
     "//url",
     "//url/mojom:url_mojom_gurl",
     "//v8",
+    "//electron/build/config:generate_mas_config"
   ]
 
   data_deps = [
@@ -1119,6 +1120,8 @@ static_library("browsertest_support") {
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  deps += ["//electron/build/config:generate_mas_config"]
 }
 
 mojom("content_test_mojo_bindings") {
@@ -2002,6 +2005,7 @@ test("content_browsertests") {
     "//ui/shell_dialogs",
     "//ui/snapshot",
     "//ui/webui:test_support",
+    "//electron/build/config:generate_mas_config"
   ]
 
   if (!(is_chromeos && target_cpu == "arm64" && current_cpu == "arm")) {
@@ -3318,6 +3322,7 @@ test("content_unittests") {
     "//ui/shell_dialogs",
     "//ui/webui:test_support",
     "//url",
+    "//electron/build/config:generate_mas_config",
   ]
 
   if (enable_nocompile_tests) {
