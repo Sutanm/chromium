@@ -5323,6 +5323,10 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   create_params.initially_hidden = renderer_started_hidden;
   create_params.initial_popup_url = params.target_url;
 
+  // Potentially allow the delegate to override the create_params.
+  if (delegate_)
+    delegate_->MaybeOverrideCreateParamsForNewWindow(&create_params);
+
   // Even though all codepaths leading here are in response to a renderer
   // trying to open a new window, if the new window ends up in a different
   // browsing instance, then the RenderViewHost, RenderWidgetHost,
@@ -5377,6 +5381,12 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   // Sets the newly created WebContents WindowOpenDisposition.
   new_contents_impl->original_window_open_disposition_ = params.disposition;
 
+  if (delegate_) {
+    delegate_->WebContentsCreatedWithFullParams(this, render_process_id,
+                                                opener->GetRoutingID(),
+                                                params, new_contents_impl);
+  }
+
   // If the new frame has a name, make sure any SiteInstances that can find
   // this named frame have proxies for it.  Must be called after
   // SetSessionStorageNamespace, since this calls CreateRenderView, which uses
@@ -5416,12 +5426,6 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     pending_contents_[id] =
         CreatedWindow(std::move(new_contents), params.target_url);
     AddWebContentsDestructionObserver(new_contents_impl);
-  }
-
-  if (delegate_) {
-    delegate_->WebContentsCreated(this, render_process_id,
-                                  opener->GetRoutingID(), params.frame_name,
-                                  params.target_url, new_contents_impl);
   }
 
   observers_.NotifyObservers(&WebContentsObserver::DidOpenRequestedURL,
