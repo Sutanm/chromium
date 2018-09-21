@@ -644,7 +644,7 @@ void RenderWidgetHostViewAura::HideImpl() {
   CHECK(visibility_ == Visibility::HIDDEN ||
         visibility_ == Visibility::OCCLUDED);
 
-  if (!host()->is_hidden()) {
+  if (!host()->is_hidden() && !host()->disable_hidden_) {
     host()->WasHidden();
     aura::WindowTreeHost* host = window_->GetHost();
       aura::Window* parent = window_->parent();
