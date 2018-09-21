@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "electron/mas.h"
 #include "sandbox/mac/sandbox_logging.h"
 #include "sandbox/mac/seatbelt.h"
 
@@ -32,6 +33,7 @@ void EncodeVarInt(uint64_t from, std::string* into) {
   } while (from);
 }
 
+#if !IS_MAS_BUILD()
 bool DecodeVarInt(std::string_view* from, uint64_t* into) {
   std::string_view::const_iterator it = from->begin();
   int shift = 0;
@@ -50,12 +52,12 @@ bool DecodeVarInt(std::string_view* from, uint64_t* into) {
   from->remove_prefix(it - from->begin());
   return true;
 }
-
+#endif
 void EncodeString(const std::string& value, std::string* into) {
   EncodeVarInt(value.length(), into);
   into->append(value);
 }
-
+#if !IS_MAS_BUILD()
 bool DecodeString(std::string_view* slice, std::string* value) {
   uint64_t length;
   if (!DecodeVarInt(slice, &length) || length < 0) {
@@ -70,7 +72,7 @@ bool DecodeString(std::string_view* slice, std::string* value) {
   slice->remove_prefix(size);
   return true;
 }
-
+#endif
 }  // namespace
 
 SandboxSerializer::SandboxSerializer(Target mode) : mode_(mode) {
@@ -147,6 +149,7 @@ bool SandboxSerializer::SerializePolicy(std::string& serialized_policy,
 std::optional<SandboxSerializer::DeserializedPolicy>
 SandboxSerializer::DeserializePolicy(const std::string& serialized_policy,
                                      std::string& error) {
+#if !IS_MAS_BUILD()
   std::string_view remaining_serialized_policy = serialized_policy;
   uint64_t mode;
   if (!DecodeVarInt(&remaining_serialized_policy, &mode)) {
@@ -192,11 +195,15 @@ SandboxSerializer::DeserializePolicy(const std::string& serialized_policy,
       break;
   }
   return deserialized_policy;
+#else
+  return std::nullopt;
+#endif
 }
 
 // static
 bool SandboxSerializer::ApplySerializedPolicy(
     const std::string& serialized_policy) {
+#if !IS_MAS_BUILD()
   std::string error;
   std::optional<DeserializedPolicy> deserialized_policy =
       DeserializePolicy(serialized_policy, error);
@@ -227,6 +234,9 @@ bool SandboxSerializer::ApplySerializedPolicy(
       break;
   }
   return true;
+#else
+  return true;
+#endif
 }
 
 }  // namespace sandbox

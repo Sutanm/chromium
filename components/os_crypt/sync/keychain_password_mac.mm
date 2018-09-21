@@ -15,6 +15,7 @@
 #include "base/rand_util.h"
 #include "build/branding_buildflags.h"
 #include "crypto/apple_keychain.h"
+#include "electron/mas.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 using crypto::AppleKeychain;
