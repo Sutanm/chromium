@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "base/time/time.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
@@ -198,6 +199,8 @@ class COMPONENT_EXPORT(UI_BASE) Accelerator {
            | (static_cast<size_t>(MaskOutKeyEventFlags(modifiers_))
               << 18);  // masked to 6 bits
   }
+
+  absl::optional<char16_t> shifted_char;
 
  private:
   friend class AcceleratorTestMac;
