@@ -12,6 +12,7 @@
 #include "base/i18n/rtl.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
@@ -164,6 +165,11 @@ std::u16string Accelerator::GetKeyCodeStringForShortcut() const {
 #endif
 
   if (key_string.empty()) {
+    // When a shifted char is explicitly specified, for example Ctrl+Plus,
+    // use the shifted char directly.
+    if (shifted_char) {
+      key_string += *shifted_char;
+    } else {
 #if BUILDFLAG(IS_WIN)
     // Our fallback is to try translate the key code to a regular character
     // unless it is one of digits (VK_0 to VK_9). Some keyboard
@@ -190,6 +196,10 @@ std::u16string Accelerator::GetKeyCodeStringForShortcut() const {
           static_cast<std::u16string::value_type>(base::ToUpperASCII(c));
     }
 #endif
+    }
+    if (key_code_ > VKEY_F1 && key_code_ <= VKEY_F24)
+      key_string = base::UTF8ToUTF16(
+          base::StringPrintf("F%d", key_code_ - VKEY_F1 + 1));
   }
 
   return key_string;
@@ -350,7 +360,7 @@ std::vector<std::u16string> Accelerator::GetLongFormModifiers() const {
     modifiers.push_back(l10n_util::GetStringUTF16(IDS_APP_CTRL_KEY));
   }
 
-  if (IsShiftDown()) {
+  if (!shifted_char && IsShiftDown()) {
     modifiers.push_back(l10n_util::GetStringUTF16(IDS_APP_SHIFT_KEY));
   }
 
