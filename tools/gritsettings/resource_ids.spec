@@ -1532,6 +1532,11 @@
 
   "third_party/search_engines_data/resources/search_engines_scaled_resources.grd": {
     "structures": [10100],
+  },
+
+  "electron/build/electron_resources.grd": {
+    "messages": [31750],
+    "includes": [31950],
   }
 
   # END "everything else" section.
