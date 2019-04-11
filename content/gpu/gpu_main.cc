@@ -272,6 +272,10 @@ int GpuMain(MainFunctionParams parameters) {
   // to the GpuProcessHost once the GpuServiceImpl has started.
   viz::GpuLogMessageManager::GetInstance()->InstallPreInitializeLogHandler();
 
+  auto* client = GetContentClient()->gpu();
+  if (client)
+    client->PreCreateMessageLoop();
+
   // We are experiencing what appear to be memory-stomp issues in the GPU
   // process. These issues seem to be impacting the task executor and listeners
   // registered to it. Create the task executor on the heap to guard against
@@ -381,7 +385,6 @@ int GpuMain(MainFunctionParams parameters) {
 #endif
   const bool dead_on_arrival = !init_success;
 
-  auto* client = GetContentClient()->gpu();
   if (client) {
     client->PostSandboxInitialized();
   }
