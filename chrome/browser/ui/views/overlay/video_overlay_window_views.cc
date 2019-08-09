@@ -19,9 +19,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#if 0
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#endif
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_label_button.h"
@@ -73,7 +75,7 @@
 #include "ui/aura/window.h"
 #endif
 
-#if BUILDFLAG(IS_WIN)
+#if 0
 #include "chrome/browser/shell_integration_win.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "ui/aura/window.h"
@@ -397,7 +399,7 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
   overlay_window->Init(std::move(params));
   overlay_window->OnRootViewReady();
 
-#if BUILDFLAG(IS_WIN)
+#if 0
   std::wstring app_user_model_id;
   Browser* browser = chrome::FindBrowserWithTab(controller->GetWebContents());
   if (browser) {
@@ -1092,10 +1094,12 @@ void VideoOverlayWindowViews::SetUpViews() {
         l10n_util::GetStringUTF16(
             IDS_PICTURE_IN_PICTURE_LIVE_CAPTION_CONTROL_TEXT));
     live_caption_button->SetSize(kActionButtonSize);
+#if 0
     live_caption_dialog = std::make_unique<OverlayWindowLiveCaptionDialog>(
         Profile::FromBrowserContext(
             controller_->GetWebContents()->GetBrowserContext()));
     live_caption_dialog->SetVisible(false);
+#endif
     toggle_microphone_button =
         std::make_unique<ToggleMicrophoneButton>(base::BindRepeating(
             [](VideoOverlayWindowViews* overlay) {
