@@ -500,6 +500,8 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   }
 
   PreferredColorScheme preferred_color_scheme() const {
+    if (theme_source() == ThemeSource::kForcedLight) return PreferredColorScheme::kLight;
+    if (theme_source() == ThemeSource::kForcedDark) return PreferredColorScheme::kDark;
     return preferred_color_scheme_;
   }
   void set_preferred_color_scheme(PreferredColorScheme preferred_color_scheme) {
@@ -529,6 +531,24 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   base::TimeDelta caret_blink_interval() const { return caret_blink_interval_; }
   void set_caret_blink_interval(base::TimeDelta caret_blink_interval) {
     caret_blink_interval_ = caret_blink_interval;
+  }
+
+  enum ThemeSource {
+    kSystem,
+    kForcedDark,
+    kForcedLight,
+  };
+
+  ThemeSource theme_source() const {
+    return theme_source_;
+  }
+
+  void set_theme_source(ThemeSource theme_source) {
+    bool was_dark = preferred_color_scheme() == PreferredColorScheme::kDark;
+    theme_source_ = theme_source;
+    if ((preferred_color_scheme() == PreferredColorScheme::kDark) != was_dark) {
+      NotifyOnNativeThemeUpdated();
+    }
   }
 
  protected:
@@ -604,6 +624,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   ColorProviderKey::UserColorSource preferred_color_source_ =
       ColorProviderKey::UserColorSource::kAccent;
   base::TimeDelta caret_blink_interval_;
+  ThemeSource theme_source_ = ThemeSource::kSystem;
 
   raw_ptr<NativeTheme> associated_web_instance_ = nullptr;
 
