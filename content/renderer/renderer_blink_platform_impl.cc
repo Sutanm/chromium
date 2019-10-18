@@ -913,6 +913,12 @@ void RendererBlinkPlatformImpl::WorkerContextCreated(
       worker);
 }
 
+void RendererBlinkPlatformImpl::WorkerScriptReadyForEvaluation(
+    const v8::Local<v8::Context>& worker) {
+  GetContentClient()->renderer()->WorkerScriptReadyForEvaluationOnWorkerThread(
+      worker);
+}
+
 bool RendererBlinkPlatformImpl::AllowScriptExtensionForServiceWorker(
     const blink::WebSecurityOrigin& script_origin) {
   return GetContentClient()->renderer()->AllowScriptExtensionForServiceWorker(
