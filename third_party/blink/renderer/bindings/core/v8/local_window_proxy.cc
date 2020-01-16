@@ -216,6 +216,7 @@ void LocalWindowProxy::Initialize() {
   }
 
   InstallConditionalFeatures();
+  GetFrame()->Client()->DidInstallConditionalFeatures(context, world_->GetWorldId());
 
   if (World().IsMainWorld()) {
     probe::DidCreateMainWorldContext(GetFrame());
