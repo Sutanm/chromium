@@ -2069,6 +2069,9 @@ void RenderWidgetHostImpl::SetCursor(const ui::Cursor& cursor) {
   if (view_) {
     view_->UpdateCursor(cursor);
   }
+  if (delegate_) {
+    delegate_->OnCursorChanged(cursor);
+  }
 }
 
 void RenderWidgetHostImpl::ShowContextMenuAtPoint(
