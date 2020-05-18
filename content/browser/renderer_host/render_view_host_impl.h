@@ -136,6 +136,7 @@ class CONTENT_EXPORT RenderViewHostImpl
   void EnablePreferredSizeMode() override;
   void WriteIntoTrace(perfetto::TracedProto<TraceProto> context) const override;
 
+  void SetSchedulerThrottling(bool allowed) override;
   void SendWebPreferencesToRenderer();
   void SendRendererPreferencesToRenderer(
       const blink::RendererPreferences& preferences);
