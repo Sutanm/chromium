@@ -182,4 +182,7 @@ interface PageBroadcast {
   // the noise token at ReadyToCommit time and update blink::WebViews that
   // were made at request time.
   UpdateCanvasNoiseToken(blink.mojom.NoiseToken? canvas_noise_token);
+
+  // Whether to enable the Renderer scheduler background throttling.
+  SetSchedulerThrottling(bool allowed);
 };
