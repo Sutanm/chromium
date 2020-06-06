@@ -11,8 +11,10 @@
 #include "base/containers/adapters.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/strings/string_util.h"
 #include "media/base/media_log.h"
 #include "net/base/net_errors.h"
 #include "third_party/blink/renderer/platform/media/buffered_data_source_host_impl.h"
@@ -68,6 +70,10 @@ const int kUpdateBufferSizeFrequency = 32;
 constexpr base::TimeDelta kSeekDelay = base::Milliseconds(20);
 
 }  // namespace
+
+void AddStreamingScheme(const char* new_scheme) {
+  MultiBufferDataSource::GetStreamingSchemes()->push_back(new_scheme);
+}
 
 class MultiBufferDataSource::ReadOperation {
  public:
@@ -143,13 +149,29 @@ MultiBufferDataSource::~MultiBufferDataSource() {
   DCHECK(render_task_runner_->BelongsToCurrentThread());
 }
 
+// static
+std::vector<std::string>* MultiBufferDataSource::GetStreamingSchemes() {
+  static base::NoDestructor<std::vector<std::string>> streaming_schemes({
+    url::kHttpsScheme,
+    url::kHttpScheme
+  });
+  return streaming_schemes.get();
+}
+
 bool MultiBufferDataSource::media_has_played() const {
   return media_has_played_;
 }
 
 bool MultiBufferDataSource::AssumeFullyBuffered() const {
   DCHECK(url_data_);
-  return !url_data_->url().ProtocolIsInHTTPFamily();
+
+  const std::string scheme = url_data_->url().Protocol().Ascii();
+  for (const std::string& streaming_scheme : *GetStreamingSchemes()) {
+    if (base::EqualsCaseInsensitiveASCII(scheme, streaming_scheme)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void MultiBufferDataSource::SetReader(
