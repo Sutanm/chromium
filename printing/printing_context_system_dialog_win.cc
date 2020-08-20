@@ -4,10 +4,12 @@
 
 #include "printing/printing_context_system_dialog_win.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "printing/backend/win_helper.h"
@@ -74,13 +76,28 @@ void PrintingContextSystemDialogWin::AskUserForSettings(
   PRINTPAGERANGE ranges[32] = {};
   dialog_options.nStartPage = START_PAGE_GENERAL;
   if (max_pages) {
-    // Default initialize to print all the pages.
-    ranges[0].nFromPage = 1;
-    ranges[0].nToPage = max_pages;
-    dialog_options.nPageRanges = 1;
-    dialog_options.nMaxPageRanges = std::size(ranges);
+    if (const auto& src = settings_->ranges(); !src.empty()) {
+      const auto transform = [](const printing::PageRange& range) {
+        return PRINTPAGERANGE{
+          .nFromPage = range.from + 1U,
+          .nToPage = range.to + 1U
+        };
+      };
+      const size_t n_items = std::min(std::size(src), std::size(ranges));
+      std::ranges::transform(base::span(src).first(n_items), ranges, transform);
+      dialog_options.nPageRanges = n_items;
+
+      // Ensure the Pages radio button is selected.
+      dialog_options.Flags |= PD_PAGENUMS;
+    } else {
+      ranges[0].nFromPage = 1;
+      ranges[0].nToPage = max_pages;
+      dialog_options.nPageRanges = 1;
+    }
+
     dialog_options.nMinPage = 1;
     dialog_options.nMaxPage = max_pages;
+    dialog_options.nMaxPageRanges = std::size(ranges);
     dialog_options.lpPageRanges = ranges;
   } else {
     // No need to bother, we don't know how many pages are available.

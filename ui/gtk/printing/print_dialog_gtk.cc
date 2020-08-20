@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -253,6 +254,22 @@ void PrintDialogGtk::UpdateSettings(
 
   gtk_print_settings_set_n_copies(gtk_settings_, settings->copies());
   gtk_print_settings_set_collate(gtk_settings_, settings->collate());
+
+  if (const auto& ranges = settings->ranges(); !ranges.empty()) {
+    // Tell the system that we only intend to print a subset of pages.
+    std::vector<GtkPageRange> granges;
+    granges.reserve(ranges.size());
+    auto transform = [](const printing::PageRange& src) {
+      return GtkPageRange{
+        .start = base::ClampedNumeric<int>(src.from),
+        .end = base::ClampedNumeric<int>(src.to),
+      };
+    };
+    std::ranges::transform(ranges, std::back_inserter(granges), transform);
+    gtk_print_settings_set_print_pages(gtk_settings_, GTK_PRINT_PAGES_RANGES);
+    gtk_print_settings_set_page_ranges(gtk_settings_, granges.data(), granges.size());
+  }
+
   if (settings->dpi_horizontal() > 0 && settings->dpi_vertical() > 0) {
     gtk_print_settings_set_resolution_xy(
         gtk_settings_, settings->dpi_horizontal(), settings->dpi_vertical());
