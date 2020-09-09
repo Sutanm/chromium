@@ -2352,8 +2352,7 @@ bool Browser::IsWebContentsCreationOverridden(
     content::SiteInstance* source_site_instance,
     content::mojom::WindowContainerType window_container_type,
     const GURL& opener_url,
-    const std::string& frame_name,
-    const GURL& target_url) {
+    const content::mojom::CreateNewWindowParams& params) {
   if (IsActorOperatingOnWebContents(
           profile(), content::WebContents::FromRenderFrameHost(opener))) {
     // If an ExecutionEngine is acting on the opener, prevent it from creating
@@ -2365,7 +2364,7 @@ bool Browser::IsWebContentsCreationOverridden(
   return (window_container_type ==
               content::mojom::WindowContainerType::BACKGROUND &&
           ShouldCreateBackgroundContents(source_site_instance, opener_url,
-                                         frame_name));
+                                         params.frame));
 }
 
 WebContents* Browser::CreateCustomWebContents(
