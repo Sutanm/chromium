@@ -1886,6 +1886,8 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
 #if BUILDFLAG(IS_MAC)
   web_view_impl->SetMaximumLegibleScale(
       prefs.default_maximum_page_scale_factor);
+  web_view_impl->GetChromeClient().SetUseExternalPopupMenusForTesting(
+      !prefs.offscreen);
 #endif
 
 #if BUILDFLAG(IS_WIN)
