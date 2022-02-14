@@ -431,6 +431,10 @@
   E_CPONLY(kColorRadioButtonForegroundUnchecked) \
   E_CPONLY(kColorRadioButtonForegroundDisabled) \
   E_CPONLY(kColorRadioButtonForegroundChecked) \
+  E_CPONLY(kColorResultsTableNormalBackground) \
+  E_CPONLY(kColorResultsTableHoveredBackground) \
+  E_CPONLY(kColorResultsTableNormalText) \
+  E_CPONLY(kColorResultsTableDimmedText) \
   E_CPONLY(kColorSegmentedButtonBorder) \
   E_CPONLY(kColorSegmentedButtonFocus) \
   E_CPONLY(kColorSegmentedButtonForegroundChecked) \
@@ -539,6 +543,7 @@
   E_CPONLY(kColorTreeNodeForeground) \
   E_CPONLY(kColorTreeNodeForegroundSelectedFocused) \
   E_CPONLY(kColorTreeNodeForegroundSelectedUnfocused) \
+  E_CPONLY(kColorUnfocusedBorder) \
   /* These colors are used to paint the controls defined in */ \
   /* ui::NativeThemeBase::ControlColorId. */ \
   E_CPONLY(kColorWebNativeControlAccent) \
