@@ -145,6 +145,10 @@ void AddNativeUiColorMixer(ColorProvider* provider,
       SetAlpha(kColorNotificationInputForeground, gfx::kGoogleGreyAlpha700);
   mixer[kColorSliderTrack] = AlphaBlend(
       kColorNativeHighlight, kColorNativeWindow, gfx::kGoogleGreyAlpha400);
+  mixer[kColorResultsTableHoveredBackground] = AlphaBlend(
+      kColorNativeHighlight, kColorNativeWindow, gfx::kGoogleGreyAlpha400);
+  mixer[kColorResultsTableDimmedText] = AlphaBlend(
+      kColorNativeWindowText, kColorNativeWindow, gfx::kGoogleGreyAlpha600);
 
   // Window Background
   mixer[kColorBubbleFooterBackground] = {kColorNativeWindow};
@@ -153,6 +157,7 @@ void AddNativeUiColorMixer(ColorProvider* provider,
   mixer[kColorFrameInactive] = {kColorNativeWindow};
   mixer[kColorPrimaryBackground] = {kColorNativeWindow};
   mixer[kColorTooltipBackground] = {kColorNativeWindow};
+  mixer[kColorResultsTableNormalBackground] = {kColorNativeWindow};
 
   // Window Text
   mixer[kColorAlertLowSeverity] = {kColorNativeWindowText};
@@ -166,6 +171,7 @@ void AddNativeUiColorMixer(ColorProvider* provider,
   mixer[kColorTableGroupingIndicator] = {kColorNativeWindowText};
   mixer[kColorThrobber] = {kColorNativeWindowText};
   mixer[kColorTooltipForeground] = {kColorNativeWindowText};
+  mixer[kColorResultsTableNormalText] = {kColorNativeWindowText};
 
   // Hyperlinks
   mixer[kColorLinkForegroundDefault] = {kColorNativeHotlight};
@@ -208,6 +214,7 @@ void AddNativeUiColorMixer(ColorProvider* provider,
   mixer[kColorTextfieldForeground] = {kColorNativeBtnText};
   mixer[kColorTextfieldForegroundPlaceholder] = {kColorNativeBtnText};
   mixer[kColorTextfieldForegroundDisabled] = {kColorNativeBtnText};
+  mixer[kColorUnfocusedBorder] = {kColorNativeBtnText};
 
   // Highlight/Selected Background
   mixer[kColorAccent] = {kColorNativeHighlight};
