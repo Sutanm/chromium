@@ -1367,6 +1367,10 @@ HBRUSH DesktopWindowTreeHostWin::GetBackgroundPaintBrush() {
   return background_paint_brush_;
 }
 
+bool DesktopWindowTreeHostWin::HandleMouseEventForCaption(UINT message) const {
+  return false;
+}
+
 DesktopNativeCursorManager*
 DesktopWindowTreeHostWin::GetSingletonDesktopNativeCursorManager() {
   return new DesktopNativeCursorManagerWin();
