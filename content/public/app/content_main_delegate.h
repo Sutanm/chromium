@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <string_view>
 #include <vector>
 
 #include "base/notreached.h"
@@ -180,6 +181,8 @@ class CONTENT_EXPORT ContentMainDelegate {
   // have already initialized Perfetto.
   virtual bool ShouldInitializePerfetto(InvokedIn invoked_in);
 #endif
+
+  virtual std::string_view GetBrowserV8SnapshotFilename();
 
  protected:
   friend class ContentClientCreator;
