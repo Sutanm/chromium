@@ -29,6 +29,10 @@
 #include "content/public/common/zygote/zygote_handle.h"
 #endif  // BUILDFLAG(USE_ZYGOTE)
 
+#if BUILDFLAG(IS_WIN)
+#include "base/win/scoped_handle.h"
+#endif
+
 namespace base {
 class Thread;
 }  // namespace base
@@ -111,13 +115,30 @@ class CONTENT_EXPORT UtilityProcessHost
         std::variant<base::FilePath, base::ScopedFD> file);
 #endif
 
-#if BUILDFLAG(IS_POSIX)
-    Options& WithEnvironment(const base::EnvironmentMap& env);
-#endif
+    // Specifies the environment that should be applied to the process.
+    // |new_environment| controls whether the process should inherit
+    // environment from the parent process.
+    Options& WithEnvironment(const base::EnvironmentMap& env,
+                             bool new_environment);
 
 #if BUILDFLAG(USE_ZYGOTE)
     Options& WithZygoteForTesting(ZygoteCommunication* handle);
 #endif  // BUILDFLAG(USE_ZYGOTE)
+
+#if BUILDFLAG(IS_WIN)
+    Options& WithStdioHandles(base::win::ScopedHandle stdout_handle,
+                              base::win::ScopedHandle stderr_handle);
+#elif BUILDFLAG(IS_POSIX)
+    Options& WithAdditionalFds(base::FileHandleMappingVector mapping);
+#endif
+
+    // Sets the working directory of the process.
+    Options& WithCurrentDirectory(const base::FilePath& cwd);
+
+#if BUILDFLAG(IS_WIN)
+    // Specifies if the process should trigger mouse cursor feedback.
+    Options& WithFeedbackCursorOff(bool feedback_cursor_off);
+#endif  // BUILDFLAG(IS_WIN)
 
     // Requests that the process bind a receiving pipe targeting the interface
     // named by `receiver`. Calls to this method generally end up in
@@ -161,6 +182,27 @@ class CONTENT_EXPORT UtilityProcessHost
 #if BUILDFLAG(USE_ZYGOTE)
     std::optional<raw_ptr<ZygoteCommunication>> zygote_for_testing_;
 #endif  // BUILDFLAG(USE_ZYGOTE)
+
+#if BUILDFLAG(IS_WIN)
+    // Specifies the handles for redirection of stdout and stderr.
+    base::win::ScopedHandle stdout_handle_;
+    base::win::ScopedHandle stderr_handle_;
+#elif BUILDFLAG(IS_POSIX)
+    // Specifies file descriptors to propagate into the child process
+    // based on the mapping.
+    base::FileHandleMappingVector fds_to_remap_;
+#endif
+
+    // If not empty, change to this directory before executing the new process.
+    base::FilePath current_directory_;
+
+    // Inherit enviroment from parent process.
+    bool inherit_environment_ = true;
+
+#if BUILDFLAG(IS_WIN)
+    // Specifies if the process should trigger mouse cursor feedback.
+    bool feedback_cursor_off_ = false;
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
     // Whether or not to bind viz::mojom::Gpu to the utility process.
