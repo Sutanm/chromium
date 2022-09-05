@@ -463,6 +463,7 @@ class BLINK_EXPORT WebLocalFrame : public WebFrame {
                                     mojom::EvaluationTiming,
                                     mojom::LoadEventBlockingOption,
                                     WebScriptExecutionCallback,
+                                    WebScriptExecutionCallbackUnmodified,
                                     BackForwardCacheAware,
                                     mojom::WantResultOption,
                                     mojom::PromiseResultOption) = 0;
