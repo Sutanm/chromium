@@ -27,6 +27,12 @@ using KeychainNameContainerType = base::NoDestructor<std::string>;
 using KeychainNameContainerType = const base::NoDestructor<std::string>;
 #endif
 
+#if IS_MAS_BUILD()
+const char kAccountNameSuffix[] = " App Store Key";
+#else
+const char kAccountNameSuffix[] = " Key";
+#endif
+
 namespace {
 
 // These two strings ARE indeed user facing.  But they are used to access
@@ -96,11 +102,49 @@ std::string KeychainPassword::GetPassword() const {
                                   uma_result);
   };
 
+  const std::string account_name_suffix = kAccountNameSuffix;
+  const std::string suffixed_account_name = GetAccountName() + account_name_suffix;
   auto password =
-      keychain_->FindGenericPassword(GetServiceName(), GetAccountName());
+      keychain_->FindGenericPassword(GetServiceName(), suffixed_account_name);
+
+  if (password.has_value()) {
+    return std::string(base::as_string_view(*password));
+  }
+
+  // If the error was anything other than "it does not exist" we should error out here
+  // This normally means the account exists but we were denied access to it
+  if (password.error() != errSecItemNotFound) {
+    OSSTATUS_LOG(ERROR, password.error()) << "Keychain lookup for suffixed key failed";
+    return std::string();
+  }
+
+  // If the suffixed account didn't exist, we should check if the legacy non-suffixed account
+  // exists. If it does we can use that key and migrate it to the new account
+  base::apple::ScopedCFTypeRef<SecKeychainItemRef> item_ref;
+  password =
+      keychain_->FindGenericPassword(GetServiceName(), GetAccountName(),
+                                     item_ref.InitializeInto());
 
   if (password.has_value()) {
     uma_result = FindGenericPasswordResult::kPasswordFound;
+
+    // If we found the legacy account name we should copy it over to
+    // the new suffixed account
+    OSStatus error = keychain_->AddGenericPassword(
+        GetServiceName(), suffixed_account_name, *password);
+
+    if (error == noErr) {
+      // If we successfully made the suffixed account we can delete the old
+      // account to ensure new apps don't try to use it and run into IAM
+      // issues
+      error = keychain_->ItemDelete(item_ref.get());
+      if (error != noErr) {
+        OSSTATUS_DLOG(ERROR, error) << "Keychain delete for legacy key failed";
+      }
+    } else {
+      OSSTATUS_DLOG(ERROR, error) << "Keychain add for suffixed key failed";
+    }
+
     return std::string(base::as_string_view(*password));
   }
 

@@ -161,7 +161,8 @@ OSStatus KeychainSecItem::AddGenericPassword(
 
 base::expected<std::vector<uint8_t>, OSStatus>
 KeychainSecItem::FindGenericPassword(std::string_view service_name,
-                                     std::string_view account_name) const {
+                                     std::string_view account_name,
+                                     AppleSecKeychainItemRef* item) const {
   base::apple::ScopedCFTypeRef<CFDictionaryRef> query =
       MakeGenericPasswordQuery(service_name, account_name);
 
@@ -202,5 +203,14 @@ KeychainSecItem::FindGenericPassword(std::string_view service_name,
 
   return base::ToVector(base::apple::CFDataToSpan(password_data));
 }
+
+#if BUILDFLAG(IS_MAC)
+OSStatus KeychainSecItem::ItemDelete(AppleSecKeychainItemRef item) const {
+  // TODO(smaddock): AppleSecKeychainItemRef aliases the deprecated
+  // SecKeychainItemRef. Need to update this to accept a CFDictionary in the
+  // case of SecItemDelete.
+  return noErr;
+}
+#endif
 
 }  // namespace crypto::apple

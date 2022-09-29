@@ -25,14 +25,15 @@ KeychainSecKeychain::~KeychainSecKeychain() = default;
 
 base::expected<std::vector<uint8_t>, OSStatus>
 KeychainSecKeychain::FindGenericPassword(std::string_view service_name,
-                                         std::string_view account_name) const {
+                                         std::string_view account_name,
+                                         AppleSecKeychainItemRef* item) const {
   base::AutoLock lock(GetMacSecurityServicesLock());
   uint32_t password_length = 0;
   void* password_data = nullptr;
   OSStatus status = SecKeychainFindGenericPassword(
       nullptr, service_name.length(), service_name.data(),
       account_name.length(), account_name.data(), &password_length,
-      &password_data, nullptr);
+      &password_data, item);
   if (status != noErr) {
     return base::unexpected(status);
   }
@@ -56,6 +57,11 @@ OSStatus KeychainSecKeychain::AddGenericPassword(
       service_name.data(), base::checked_cast<uint32_t>(account_name.length()),
       account_name.data(), base::checked_cast<uint32_t>(password.size()),
       password.data(), nullptr);
+}
+
+OSStatus KeychainSecKeychain::ItemDelete(AppleSecKeychainItemRef item) const {
+  base::AutoLock lock(GetMacSecurityServicesLock());
+  return SecKeychainItemDelete(item);
 }
 
 #pragma clang diagnostic pop
