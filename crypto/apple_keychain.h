@@ -18,6 +18,12 @@
 
 namespace crypto {
 
+#if BUILDFLAG(IS_IOS)
+using AppleSecKeychainItemRef = void*;
+#else
+using AppleSecKeychainItemRef = SecKeychainItemRef;
+#endif
+
 // DEPRECATED: use `AppleKeychainV2` instead.
 // Wraps the KeychainServices API in a very thin layer, to allow it to be
 // mocked out for testing.
@@ -46,12 +52,17 @@ class CRYPTO_EXPORT AppleKeychain {
   // std::vector<uint8_t> arm is populated instead.
   virtual base::expected<std::vector<uint8_t>, OSStatus> FindGenericPassword(
       std::string_view service_name,
-      std::string_view account_name) const = 0;
+      std::string_view account_name,
+      AppleSecKeychainItemRef* item = nullptr) const = 0;
 
   virtual OSStatus AddGenericPassword(
       std::string_view service_name,
       std::string_view account_name,
       base::span<const uint8_t> password) const = 0;
+
+#if BUILDFLAG(IS_MAC)
+  virtual OSStatus ItemDelete(AppleSecKeychainItemRef item) const;
+#endif  // !BUILDFLAG(IS_MAC)
 
  protected:
   AppleKeychain();

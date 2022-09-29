@@ -20,7 +20,8 @@ class CRYPTO_EXPORT AppleKeychainSecKeychain : public AppleKeychain {
 
   base::expected<std::vector<uint8_t>, OSStatus> FindGenericPassword(
       std::string_view service_name,
-      std::string_view account_name) const override;
+      std::string_view account_name,
+      AppleSecKeychainItemRef* item) const override;
 
   OSStatus AddGenericPassword(
       std::string_view service_name,

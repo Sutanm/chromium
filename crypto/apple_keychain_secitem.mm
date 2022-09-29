@@ -118,7 +118,8 @@ OSStatus AppleKeychainSecItem::AddGenericPassword(
 
 base::expected<std::vector<uint8_t>, OSStatus>
 AppleKeychainSecItem::FindGenericPassword(std::string_view service_name,
-                                          std::string_view account_name) const {
+                                          std::string_view account_name,
+                                          AppleSecKeychainItemRef* item) const {
   base::apple::ScopedCFTypeRef<CFDictionaryRef> query =
       MakeGenericPasswordQuery(service_name, account_name);
 

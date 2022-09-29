@@ -32,7 +32,8 @@ MockAppleKeychain::~MockAppleKeychain() = default;
 
 base::expected<std::vector<uint8_t>, OSStatus>
 MockAppleKeychain::FindGenericPassword(std::string_view service_name,
-                                       std::string_view account_name) const {
+                                       std::string_view account_name,
+                                       AppleSecKeychainItemRef* item) const {
   IncrementKeychainAccessHistogram();
 
   // When simulating |noErr|, return canned |passwordData| and
