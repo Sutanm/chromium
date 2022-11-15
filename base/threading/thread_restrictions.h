@@ -132,6 +132,7 @@ class KeyStorageLinux;
 class NativeBackendKWallet;
 class NativeDesktopMediaList;
 class PartnerBookmarksReader;
+class ProcessSingleton;
 class Profile;
 class ProfileImpl;
 class ScopedAllowBlockingForProfile;
@@ -279,6 +280,9 @@ class BackendImpl;
 class InFlightIO;
 bool CleanupDirectorySync(const base::FilePath&);
 }  // namespace disk_cache
+namespace electron {
+class ScopedAllowBlockingForElectron;
+}  // namespace electron
 namespace enterprise_connectors {
 class LinuxKeyRotationCommand;
 }  // namespace enterprise_connectors
@@ -572,6 +576,7 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class ::DesktopNotificationBalloon;
   friend class ::FirefoxProfileLock;
   friend class ::GaiaConfig;
+  friend class ::ProcessSingleton;
   friend class ::ProfileImpl;
   friend class ::ScopedAllowBlockingForProfile;
   friend class ::StartupTabProviderImpl;
@@ -613,6 +618,7 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class cronet::CronetPrefsManager;
   friend class crypto::ScopedAllowBlockingForNSS;  // http://crbug.com/59847
   friend class drive::FakeDriveService;
+  friend class electron::ScopedAllowBlockingForElectron;
   friend class extensions::InstalledLoader;
   friend class extensions::UnpackedInstaller;
   friend class font_service::internal::MappedFontFile;
