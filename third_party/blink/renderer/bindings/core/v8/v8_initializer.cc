@@ -638,7 +638,9 @@ bool WasmJSPromiseIntegrationEnabledCallback(v8::Local<v8::Context> context) {
       execution_context);
 }
 
-v8::MaybeLocal<v8::Promise> HostImportModuleWithPhaseDynamically(
+}  // namespace
+
+v8::MaybeLocal<v8::Promise> V8Initializer::HostImportModuleWithPhaseDynamically(
     v8::Local<v8::Context> context,
     v8::Local<v8::Data> v8_host_defined_options,
     v8::Local<v8::Value> v8_referrer_resource_url,
@@ -723,13 +725,13 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamically(
     v8::Local<v8::Value> v8_referrer_resource_url,
     v8::Local<v8::String> v8_specifier,
     v8::Local<v8::FixedArray> v8_import_attributes) {
-  return HostImportModuleWithPhaseDynamically(
+  return V8Initializer::HostImportModuleWithPhaseDynamically(
       context, v8_host_defined_options, v8_referrer_resource_url, v8_specifier,
       v8::ModuleImportPhase::kEvaluation, v8_import_attributes);
 }
 
 // https://html.spec.whatwg.org/C/#hostgetimportmetaproperties
-void HostGetImportMetaProperties(v8::Local<v8::Context> context,
+void V8Initializer::HostGetImportMetaProperties(v8::Local<v8::Context> context,
                                  v8::Local<v8::Module> module,
                                  v8::Local<v8::Object> meta) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -776,9 +778,6 @@ std::ostream& operator<<(std::ostream& os, const PrintV8OOM& oom_details) {
   return os;
 }
 
-}  // namespace
-
-// static
 void V8Initializer::InitializeV8Common(v8::Isolate* isolate) {
   // Set up garbage collection before setting up anything else as V8 may trigger
   // GCs during Blink setup.
@@ -800,9 +799,9 @@ void V8Initializer::InitializeV8Common(v8::Isolate* isolate) {
       SharedArrayBufferConstructorEnabledCallback);
   isolate->SetHostImportModuleDynamicallyCallback(HostImportModuleDynamically);
   isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
-      HostImportModuleWithPhaseDynamically);
+      V8Initializer::HostImportModuleWithPhaseDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
-      HostGetImportMetaProperties);
+      V8Initializer::HostGetImportMetaProperties);
   isolate->SetIsJSApiWrapperNativeErrorCallback(IsDOMExceptionWrapper);
   isolate->SetMetricsRecorder(std::make_shared<V8MetricsRecorder>(isolate));
 
