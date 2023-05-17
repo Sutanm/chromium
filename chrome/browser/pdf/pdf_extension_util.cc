@@ -245,10 +245,13 @@ bool IsPrintingEnabled(content::BrowserContext* context) {
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
 bool IsPdfAnnotationsEnabledByPolicy(content::BrowserContext* context) {
+# if 0
   PrefService* prefs =
       context ? Profile::FromBrowserContext(context)->GetPrefs() : nullptr;
   return !prefs || !prefs->IsManagedPreference(prefs::kPdfAnnotationsEnabled) ||
          prefs->GetBoolean(prefs::kPdfAnnotationsEnabled);
+#endif
+  return true;
 }
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
 
