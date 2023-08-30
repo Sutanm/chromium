@@ -6,6 +6,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_bounds_cache.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -32,8 +33,10 @@
 #include "base/task/sequenced_task_runner.h"
 // TODO(crbug.com/421608904): include auto_picture_in_picture_tab_helper for
 // Android when supporting document PiP.
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
 #include "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h"
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "chrome/browser/picture_in_picture/picture_in_picture_window.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
@@ -68,6 +71,7 @@ constexpr double kMaxWindowSizeRatio = 0.8;
 // `kMaxWindowSizeRatio`.
 constexpr double kMaxSiteRequestedWindowSizeRatio = 0.25;
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 // Returns true if a document picture-in-picture window should be focused upon
 // opening it.
 bool ShouldFocusPictureInPictureWindow(const NavigateParams& params) {
@@ -84,6 +88,7 @@ bool ShouldFocusPictureInPictureWindow(const NavigateParams& params) {
   // AutoPictureInPictureTabHelper.
   return !auto_picture_in_picture_tab_helper->IsInAutoPictureInPicture();
 }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 // Returns the maximum area in pixels that the site can request a
 // picture-in-picture window to be.
@@ -221,7 +226,7 @@ bool PictureInPictureWindowManager::ExitPictureInPictureViaWindowUi(
     return false;
   }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // The user manually closed the pip window, so let the tab helper know in case
   // the auto-pip permission dialog was visible.
   if (auto* tab_helper = AutoPictureInPictureTabHelper::FromWebContents(
@@ -572,7 +577,7 @@ gfx::Size PictureInPictureWindowManager::GetMaximumWindowSize(
 
 // static
 void PictureInPictureWindowManager::SetWindowParams(NavigateParams& params) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Always show document picture-in-picture in a new window. When this is
   // not opened via the AutoPictureInPictureTabHelper, focus the window.
   params.window_action = ShouldFocusPictureInPictureWindow(params)
@@ -676,6 +681,7 @@ PictureInPictureWindowManager::GetOverlayView(
     return nullptr;
   }
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // It would be nice to create this in `EnterPictureInPicture*`, but detecting
   // auto-pip while pip is in the process of opening doesn't work.
   //
@@ -714,6 +720,8 @@ PictureInPictureWindowManager::GetOverlayView(
   }
 
   return overlay_view;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  return nullptr;
 }
 
 PictureInPictureOcclusionTracker*
