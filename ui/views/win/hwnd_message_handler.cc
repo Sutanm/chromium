@@ -937,13 +937,13 @@ void HWNDMessageHandler::FrameTypeChanged() {
 
 void HWNDMessageHandler::PaintAsActiveChanged() {
   if (!delegate_->HasNonClientView() || !delegate_->CanActivate() ||
-      !delegate_->HasFrame() ||
+      (!delegate_->HasFrame() && !is_translucent_) ||
       (delegate_->GetFrameMode() == FrameMode::CUSTOM_DRAWN)) {
     return;
   }
 
   DefWindowProcWithRedrawLock(WM_NCACTIVATE, delegate_->ShouldPaintAsActive(),
-                              0);
+                              delegate_->HasFrame() ? 0 : -1);
 }
 
 void HWNDMessageHandler::SetWindowIcons(const gfx::ImageSkia& window_icon,
@@ -1732,7 +1732,7 @@ void HWNDMessageHandler::OnActivateApp(BOOL active, DWORD thread_id) {
   if (delegate_->HasNonClientView() && !active &&
       thread_id != GetCurrentThreadId()) {
     // Update the native frame if it is rendering the non-client area.
-    if (HasSystemFrame()) {
+    if (is_translucent_ || HasSystemFrame()) {
       DefWindowProcWithRedrawLock(WM_NCACTIVATE, FALSE, 0);
     }
   }
@@ -2340,17 +2340,18 @@ LRESULT HWNDMessageHandler::OnNCActivate(UINT message,
     delegate_->SchedulePaint();
   }
 
-  // Calling DefWindowProc is only necessary if there's a system frame being
-  // drawn. Otherwise it can draw an incorrect title bar and cause visual
-  // corruption.
-  if (!delegate_->HasFrame() ||
+  // If the window is translucent, it may have the Mica background.
+  // In that case, it's necessary to call |DefWindowProc|, but we can
+  // pass -1 in the lParam to prevent any non-client area elements from
+  // being displayed.
+  if ((!delegate_->HasFrame() && !is_translucent_) ||
       delegate_->GetFrameMode() == FrameMode::CUSTOM_DRAWN) {
     SetMsgHandled(TRUE);
     return TRUE;
   }
 
   return DefWindowProcWithRedrawLock(WM_NCACTIVATE, paint_as_active || active,
-                                     0);
+                                     delegate_->HasFrame() ? 0 : -1);
 }
 
 LRESULT HWNDMessageHandler::OnNCCalcSize(BOOL mode, LPARAM l_param) {
