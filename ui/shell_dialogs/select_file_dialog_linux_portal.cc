@@ -25,6 +25,7 @@
 #include "dbus/message.h"
 #include "dbus/object_path.h"
 #include "dbus/object_proxy.h"
+#include "electron/shell/browser/ui/file_dialog.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/native_ui_types.h"
@@ -96,7 +97,7 @@ void OnGetPropertyReply(dbus::Response* response) {
                                : ServiceAvailability::kNotAvailable;
 }
 
-void OnServiceStarted(std::optional<bool> service_started) {
+[[maybe_unused]] void OnServiceStarted(std::optional<bool> service_started) {
   if (!service_started.value_or(false)) {
     g_service_availability = ServiceAvailability::kNotAvailable;
     return;
@@ -115,9 +116,12 @@ void OnServiceStarted(std::optional<bool> service_started) {
 }
 
 void OnSystemdUnitStarted(dbus_xdg::SystemdUnitStatus) {
+#if 0
   dbus_utils::CheckForServiceAndStart(dbus_thread_linux::GetSharedSessionBus(),
                                       kXdgPortalService,
                                       base::BindOnce(&OnServiceStarted));
+#endif
+  file_dialog::StartPortalAvailabilityTestInBackground();
 }
 
 std::vector<uint8_t> PathToByteArray(const base::FilePath& path) {
@@ -171,17 +175,20 @@ void SelectFileDialogLinuxPortal::StartAvailabilityTestInBackground() {
   GetMainTaskRunner() = base::SequencedTaskRunner::GetCurrentDefault();
 
   dbus_xdg::SetSystemdScopeUnitNameForXdgPortal(
-      dbus_thread_linux::GetSharedSessionBus().get(),
-      base::BindOnce(&OnSystemdUnitStarted));
+    dbus_thread_linux::GetSharedSessionBus().get(),
+    base::BindOnce(&OnSystemdUnitStarted));
 }
 
 // static
 bool SelectFileDialogLinuxPortal::IsPortalAvailable() {
+#if 0
   if (g_service_availability == ServiceAvailability::kInProgress) {
     LOG(WARNING) << "Portal availability checked before test was complete";
   }
 
   return g_service_availability == ServiceAvailability::kAvailable;
+#endif
+  return file_dialog::IsPortalAvailable();
 }
 
 bool SelectFileDialogLinuxPortal::IsRunning(
@@ -386,11 +393,14 @@ dbus_xdg::Dictionary SelectFileDialogLinuxPortal::BuildOptionsDictionary(
     const PortalFilterSet& filter_set) {
   dbus_xdg::Dictionary dict;
 
+  std::string accept_label = button_label().empty() ? "" : button_label();
+
   switch (type_) {
     case SelectFileDialog::SELECT_UPLOAD_FOLDER:
-      dict[kFileChooserOptionAcceptLabel] =
-          dbus_utils::Variant::Wrap<"s">(l10n_util::GetStringUTF8(
-              IDS_SELECT_UPLOAD_FOLDER_DIALOG_UPLOAD_BUTTON));
+      if (accept_label.empty()) {
+        accept_label = l10n_util::GetStringUTF8(
+            IDS_SELECT_UPLOAD_FOLDER_DIALOG_UPLOAD_BUTTON);
+      }
       [[fallthrough]];
     case SelectFileDialog::SELECT_FOLDER:
     case SelectFileDialog::Type::SELECT_EXISTING_FOLDER:
@@ -401,6 +411,11 @@ dbus_xdg::Dictionary SelectFileDialogLinuxPortal::BuildOptionsDictionary(
       break;
     default:
       break;
+  }
+
+  if (!accept_label.empty()) {
+    dict[kFileChooserOptionAcceptLabel] =
+        dbus_utils::Variant::Wrap<"s">(accept_label);
   }
 
   if (!default_path.empty() && base::IsStringUTF8(default_path.value())) {
