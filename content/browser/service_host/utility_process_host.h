@@ -68,7 +68,7 @@ class CONTENT_EXPORT UtilityProcessHost
 
     virtual void OnProcessLaunched(const base::Process& process) {}
     virtual void OnProcessTerminatedNormally() {}
-    virtual void OnProcessCrashed() {}
+    virtual void OnProcessCrashed(int exit_code) {}
   };
 
   struct CONTENT_EXPORT Options {
