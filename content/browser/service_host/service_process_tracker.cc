@@ -51,7 +51,8 @@ void ServiceProcessTracker::NotifyTerminated(ServiceProcessId id) {
 
 void ServiceProcessTracker::NotifyCrashed(
     ServiceProcessId id,
-    UtilityProcessHost::Client::CrashType crash_type) {
+    UtilityProcessHost::Client::CrashType crash_type,
+    int exit_code) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto iter = processes_.find(id);
   CHECK(iter != processes_.end());
@@ -65,7 +66,9 @@ void ServiceProcessTracker::NotifyCrashed(
       break;
   }
   for (auto& observer : observers_) {
-    observer.OnServiceProcessCrashed(iter->second.Duplicate());
+    auto params = iter->second.Duplicate();
+    params.set_exit_code(exit_code);
+    observer.OnServiceProcessCrashed(params);
   }
   processes_.erase(iter);
 }

@@ -642,7 +642,7 @@ void UtilityProcessHost::OnProcessCrashed(int exit_code) {
                : Client::CrashType::kPreIpcInitialization;
   }
 #endif  // BUILDFLAG(IS_WIN)
-  client->OnProcessCrashed(type);
+  client->OnProcessCrashed(type, exit_code);
 }
 
 std::optional<std::string> UtilityProcessHost::GetServiceName() {
