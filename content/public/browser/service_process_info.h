@@ -68,7 +68,13 @@ class CONTENT_EXPORT ServiceProcessInfo {
     crashed_pre_ipc_ = crashed_pre_ipc;
   }
 
+  void set_exit_code(int exit_code) { exit_code_ = exit_code; }
+  int exit_code() const { return exit_code_; }
+
  private:
+  // The exit code of the process, if it has exited.
+  int exit_code_ = 0;
+
   // The name of the service interface for which the process was launched.
   std::string service_interface_name_;
 

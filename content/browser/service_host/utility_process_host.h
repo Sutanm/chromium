@@ -88,7 +88,7 @@ class CONTENT_EXPORT UtilityProcessHost final
     virtual void OnProcessTerminatedNormally() {}
     // Called when the process has terminated due to a crash. The `type` field
     // indicates the type of crash. See above.
-    virtual void OnProcessCrashed(CrashType type) {}
+    virtual void OnProcessCrashed(CrashType type, int exit_code) {}
   };
 
   struct CONTENT_EXPORT Options {
