@@ -525,7 +525,7 @@ void NativeWidgetNSWindowBridge::InitWindow(
   is_translucent_window_ = params->is_translucent;
   pending_restoration_data_ = params->state_restoration_data;
 
-  if (display::Screen::Get()->IsHeadless()) {
+  if (params->is_headless_mode_window) {
     headless_mode_window_ = std::make_optional<HeadlessModeWindow>();
   }
 
