@@ -365,6 +365,8 @@ struct CAPTURE_EXPORT VideoCaptureParams {
   // of the capture is dynamically changed, as for example when using
   // share-this-tab-instead.
   uint32_t capture_version_source = 0;
+
+  std::optional<bool> use_native_picker;
 };
 
 CAPTURE_EXPORT std::ostream& operator<<(
