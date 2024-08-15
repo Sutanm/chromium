@@ -182,7 +182,7 @@ bool FrameResources::Initialize(VideoPixelFormat format,
 
   auto* context = pool_->GetContext();
 
-  constexpr gfx::BufferUsage kBufferUsage =
+  gfx::BufferUsage buffer_usage =
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
       gfx::BufferUsage::SCANOUT_VEA_CPU_READ
 #else
@@ -192,6 +192,23 @@ bool FrameResources::Initialize(VideoPixelFormat format,
 
   const gfx::Size coded_size =
       GetCodedSizeForVideoPixelFormat(format, visible_size_);
+
+#if BUILDFLAG(IS_WIN)
+  // For CEF OSR feature, currently there's no other place in chromium use RGBA.
+  // If the format is RGBA, currently CEF do not write to the texture anymore
+  // once the GMB is returned from CopyRequest. So there will be no race
+  // condition on that texture. We can request a GMB without a keyed mutex to
+  // accelerate and probably prevent some driver deadlock.
+  if (format == PIXEL_FORMAT_ARGB || format == PIXEL_FORMAT_ABGR) {
+    // This value is 'borrowed', SCANOUT_VEA_CPU_READ is probably invalid
+    // cause there's no real SCANOUT on Windows. We simply use this enum as a
+    // flag to disable mutex in the GMBFactoryDXGI because this enum is also
+    // used above in macOS and CrOS for similar usage (claim no other one will
+    // concurrently use the resource).
+    // https://chromium-review.googlesource.com/c/chromium/src/+/5302103
+    buffer_usage = gfx::BufferUsage::SCANOUT_VEA_CPU_READ;
+  }
+#endif
 
   gpu::SharedImageUsageSet usage =
 #if BUILDFLAG(IS_MAC)
@@ -230,7 +247,7 @@ bool FrameResources::Initialize(VideoPixelFormat format,
       VideoPixelFormatToSharedImageFormat(format).value();
 
   shared_image_ = context->CreateSharedImage(
-      coded_size, kBufferUsage, si_format, color_space, usage, sync_token_);
+      coded_size, buffer_usage, si_format, color_space, usage, sync_token_);
   if (!shared_image_) {
     DLOG(ERROR) << "Failed to allocate shared image for frame: visible_size="
                 << visible_size_.ToString()
