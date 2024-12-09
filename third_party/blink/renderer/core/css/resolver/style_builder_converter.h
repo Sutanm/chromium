@@ -434,6 +434,7 @@ class StyleBuilderConverter {
   static PositionTryFallback ConvertSinglePositionTryFallback(
       StyleResolverState&,
       const CSSValue&);
+  static Length ConvertCornerSmoothing(StyleResolverState&, const CSSValue&);
   static FitText ConvertFitText(StyleResolverState&, const CSSValue&);
   static TextOverflowData ConvertTextOverflow(StyleResolverState&,
                                               const CSSValue&);

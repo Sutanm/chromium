@@ -12273,5 +12273,36 @@ const CSSValue* InternalEmptyLineHeight::ParseSingleValue(
                                          CSSValueID::kNone>(stream);
 }
 
+const CSSValue* ElectronCornerSmoothing::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&) const {
+  // Try to parse `system-ui` keyword first.
+  if (auto* ident =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kSystemUi>(stream)) {
+    return ident;
+  }
+  // Try to parse as percent.
+  return css_parsing_utils::ConsumePercent(
+      stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
+}
+
+const CSSValue* ElectronCornerSmoothing::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Length& length = style.ElectronCornerSmoothing();
+  switch (length.GetType()) {
+    case Length::kAuto:
+      return CSSIdentifierValue::Create(CSSValueID::kSystemUi);
+    case Length::kPercent:
+      return CSSNumericLiteralValue::Create(
+          length.Percent(), CSSPrimitiveValue::UnitType::kPercentage);
+    default:
+      return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+}
+
 }  // namespace css_longhand
 }  // namespace blink
