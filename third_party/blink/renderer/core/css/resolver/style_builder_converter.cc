@@ -3962,4 +3962,12 @@ FitText StyleBuilderConverter::ConvertFitText(StyleResolverState& state,
   return FitText(target, method, size_limit);
 }
 
+Length StyleBuilderConverter::ConvertCornerSmoothing(StyleResolverState& state, const CSSValue& value) {
+  auto* ident = DynamicTo<CSSIdentifierValue>(value);
+  if (ident && ident->GetValueID() == CSSValueID::kSystemUi) {
+    return Length::Auto();
+  }
+  return ConvertLength(state, value);
+}
+
 }  // namespace blink

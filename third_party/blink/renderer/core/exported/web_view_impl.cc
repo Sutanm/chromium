@@ -3579,6 +3579,9 @@ void WebViewImpl::UpdateRendererPreferences(
       renderer_preferences_.view_source_line_wrap_enabled);
 
   MaybePreloadSystemFonts(GetPage());
+
+  GetSettings()->SetCornerSmoothingCSS(
+      renderer_preferences_.electron_corner_smoothing_css);
 }
 
 void WebViewImpl::SetHistoryIndexAndLength(int32_t history_index,

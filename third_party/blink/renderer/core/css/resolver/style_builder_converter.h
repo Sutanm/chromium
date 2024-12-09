@@ -422,6 +422,8 @@ class StyleBuilderConverter {
 
   static PositionArea ConvertPositionArea(StyleResolverState&, const CSSValue&);
   static FitText ConvertFitText(StyleResolverState&, const CSSValue&);
+
+  static Length ConvertCornerSmoothing(StyleResolverState&, const CSSValue&);
 };
 
 template <typename T>
