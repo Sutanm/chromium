@@ -448,6 +448,7 @@ class StyleBuilderConverter {
       StyleResolverState&,
       const CSSValue&,
       bool allow_any_keyword_in_position_area = false);
+  static Length ConvertCornerSmoothing(StyleResolverState&, const CSSValue&);
   static FitText ConvertFitText(StyleResolverState&, const CSSValue&);
   static TextOverflowData ConvertTextOverflow(StyleResolverState&,
                                               const CSSValue&);

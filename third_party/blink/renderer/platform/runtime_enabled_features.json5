@@ -215,6 +215,10 @@
 
   data: [
     {
+      name: "ElectronCSSCornerSmoothing",
+      status: "stable",
+    },
+    {
       // crbug.com/439682405
       name: "AbortByPlaceholderLayout",
       status: "stable",
