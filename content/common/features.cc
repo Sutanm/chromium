@@ -324,6 +324,14 @@ BASE_FEATURE(kIOSurfaceCapturer,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// Feature that controls whether WebContentsOcclusionChecker should handle
+// occlusion notifications.
+#if BUILDFLAG(IS_MAC)
+BASE_FEATURE(kMacWebContentsOcclusion,
+             "MacWebContentsOcclusion",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 // When enabled, child process will not terminate itself when IPC is reset.
 BASE_FEATURE(kKeepChildProcessAfterIPCReset,
              "KeepChildProcessAfterIPCReset",
