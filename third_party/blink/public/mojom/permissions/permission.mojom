@@ -43,7 +43,8 @@ enum PermissionName {
   AR,
   HAND_TRACKING,
   WEB_PRINTING,
-  SMART_CARD
+  SMART_CARD,
+  DEPRECATED_SYNC_CLIPBOARD_READ
 };
 
 struct MidiPermissionDescriptor {
