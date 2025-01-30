@@ -123,7 +123,7 @@ bool ClipboardCommands::CanReadClipboard(LocalFrame& frame,
     return true;
   }
   return frame.GetContentSettingsClient() &&
-         frame.GetContentSettingsClient()->AllowReadFromClipboard();
+         frame.GetContentSettingsClient()->AllowReadFromClipboardSync();
 }
 
 bool ClipboardCommands::CanWriteClipboard(LocalFrame& frame,
@@ -312,7 +312,7 @@ bool ClipboardCommands::PasteSupported(LocalFrame* frame) {
     return true;
   }
   return frame->GetContentSettingsClient() &&
-         frame->GetContentSettingsClient()->AllowReadFromClipboard();
+         frame->GetContentSettingsClient()->AllowReadFromClipboardSync();
 }
 
 bool ClipboardCommands::ExecuteCopy(LocalFrame& frame,

@@ -171,6 +171,9 @@ content::PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
     case blink::PermissionType::LOCAL_NETWORK_ACCESS:
       return CreatePermissionDescriptor(
           blink::mojom::PermissionName::LOCAL_NETWORK_ACCESS);
+    case blink::PermissionType::DEPRECATED_SYNC_CLIPBOARD_READ:
+      return CreatePermissionDescriptor(
+          blink::mojom::PermissionName::DEPRECATED_SYNC_CLIPBOARD_READ);
     case blink::PermissionType::NUM:
       NOTREACHED();
   }
