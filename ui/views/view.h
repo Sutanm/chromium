@@ -81,6 +81,19 @@ class ArcNotificationContentView;
 class WideFrameView;
 }  // namespace ash
 
+namespace electron {
+class DevToolsWindowDelegate;
+class InspectableWebContentsView;
+class MenuBar;
+class RootView;
+class RootViewMac;
+}
+
+namespace electron::api {
+class ImageView;
+class View;
+}
+
 namespace exo {
 class ShellSurfaceBase;
 }
@@ -324,6 +337,14 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
  public:
   class OwnedByClientPassKey {
    private:
+    // TODO(ckerr) can this list be shortened?
+    friend class electron::DevToolsWindowDelegate;
+    friend class electron::InspectableWebContentsView;
+    friend class electron::MenuBar;
+    friend class electron::RootView;
+    friend class electron::RootViewMac;
+    friend class electron::api::ImageView;
+    friend class electron::api::View;
     // DO NOT ADD TO THIS LIST!
     // These existing cases are "grandfathered in", but there shouldn't be more.
     // See comments atop class.
