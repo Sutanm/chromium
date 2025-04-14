@@ -165,6 +165,12 @@ namespace crostini {
 class AppRestartDialog;
 }
 
+namespace electron {
+class AutofillPopupView;
+class DevToolsWindowDelegate;
+class NativeWindowMac;
+}
+
 namespace enterprise_connectors {
 class ContentAnalysisDialogController;
 class ContentAnalysisDialogBehaviorBrowserTest;
@@ -374,6 +380,7 @@ class VIEWS_EXPORT WidgetDelegate {
 
   class OwnedByWidgetPassKey {
    private:
+    friend class electron::DevToolsWindowDelegate;
     // DO NOT ADD TO THIS LIST!
     // These existing cases are "grandfathered in", but there shouldn't be more.
     // See comments atop `SetOwnedByWidget()`.
@@ -470,6 +477,7 @@ class VIEWS_EXPORT WidgetDelegate {
   };
   class RegisterDeleteCallbackPassKey {
    private:
+    friend class electron::NativeWindowMac;
     // DO NOT ADD TO THIS LIST!
     // These existing cases are "grandfathered in", but there shouldn't be more.
     // See comments atop `RegisterDeleteDelegateCallback()`.
@@ -927,6 +935,7 @@ class VIEWS_EXPORT WidgetDelegateView : public WidgetDelegate, public View {
   View* GetContentsView() override;
 
  private:
+  friend class electron::AutofillPopupView;
   // DO NOT ADD TO THIS LIST!
   // These existing cases are "grandfathered in", but there shouldn't be more.
   // See comments atop class.
