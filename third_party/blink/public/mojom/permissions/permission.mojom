@@ -44,7 +44,15 @@ enum PermissionName {
   HAND_TRACKING,
   WEB_PRINTING,
   SMART_CARD,
-  DEPRECATED_SYNC_CLIPBOARD_READ
+
+  // Permissions added by Electron
+  DEPRECATED_SYNC_CLIPBOARD_READ,
+  FILE_SYSTEM,
+  ELECTRON_FULLSCREEN,
+  HID,
+  OPEN_EXTERNAL,
+  SERIAL,
+  USB
 };
 
 struct MidiPermissionDescriptor {

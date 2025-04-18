@@ -94,7 +94,15 @@ PermissionToSchedulingFeature(PermissionType permission_name) {
     case PermissionType::AUTOMATIC_FULLSCREEN:
     case PermissionType::WEB_APP_INSTALLATION:
     case PermissionType::LOCAL_NETWORK_ACCESS:
+
+    // Permissions added by Electron
     case PermissionType::DEPRECATED_SYNC_CLIPBOARD_READ:
+    case PermissionType::FILE_SYSTEM:
+    case PermissionType::ELECTRON_FULLSCREEN:
+    case PermissionType::HID:
+    case PermissionType::OPEN_EXTERNAL:
+    case PermissionType::SERIAL:
+    case PermissionType::USB:
       return std::nullopt;
   }
 }

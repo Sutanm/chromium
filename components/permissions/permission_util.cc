@@ -536,7 +536,17 @@ ContentSettingsType PermissionUtil::PermissionTypeToContentSettingsTypeSafe(
       return ContentSettingsType::WEB_APP_INSTALLATION;
     case PermissionType::LOCAL_NETWORK_ACCESS:
       return ContentSettingsType::LOCAL_NETWORK_ACCESS;
+
+    // Permissions added by Electron
     case PermissionType::DEPRECATED_SYNC_CLIPBOARD_READ:
+    case PermissionType::ELECTRON_FULLSCREEN:
+    case PermissionType::FILE_SYSTEM:
+    case PermissionType::HID:
+    case PermissionType::OPEN_EXTERNAL:
+    case PermissionType::SERIAL:
+    case PermissionType::USB:
+      break;
+
     case PermissionType::NUM:
       break;
   }
