@@ -171,9 +171,27 @@ content::PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
     case blink::PermissionType::LOCAL_NETWORK_ACCESS:
       return CreatePermissionDescriptor(
           blink::mojom::PermissionName::LOCAL_NETWORK_ACCESS);
+
+    // Permissions added by Electron
     case blink::PermissionType::DEPRECATED_SYNC_CLIPBOARD_READ:
       return CreatePermissionDescriptor(
           blink::mojom::PermissionName::DEPRECATED_SYNC_CLIPBOARD_READ);
+    case blink::PermissionType::FILE_SYSTEM:
+      return CreatePermissionDescriptor(
+          blink::mojom::PermissionName::FILE_SYSTEM);
+    case blink::PermissionType::ELECTRON_FULLSCREEN:
+      return CreatePermissionDescriptor(
+          blink::mojom::PermissionName::ELECTRON_FULLSCREEN);
+    case blink::PermissionType::HID:
+      return CreatePermissionDescriptor(blink::mojom::PermissionName::HID);
+    case blink::PermissionType::OPEN_EXTERNAL:
+      return CreatePermissionDescriptor(
+          blink::mojom::PermissionName::OPEN_EXTERNAL);
+    case blink::PermissionType::SERIAL:
+      return CreatePermissionDescriptor(blink::mojom::PermissionName::SERIAL);
+    case blink::PermissionType::USB:
+      return CreatePermissionDescriptor(blink::mojom::PermissionName::USB);
+
     case blink::PermissionType::NUM:
       NOTREACHED();
   }
