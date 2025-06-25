@@ -305,14 +305,6 @@ ui::TextEditCommand GetTextEditCommandForMenuAction(SEL action) {
     return nil;
   }
 
-  // Send event to views::RootView.
-  if (hitTestResult == remote_cocoa::mojom::HitTestResult::kRootView) {
-    // Most commonly this NSView is NSWindow's contentView. However in immersive
-    // fullscreen, the view may be a subview of another AppKit-owned view in the
-    // titlebar.
-    return self;
-  }
-
   return [super hitTest:point];
 }
 
