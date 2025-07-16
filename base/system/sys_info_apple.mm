@@ -6,10 +6,30 @@
 
 #include <sys/sysctl.h>
 
+#include "base/apple/scoped_mach_port.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info_internal.h"
 
 namespace base {
+
+namespace {
+
+// Implementation of AmountOfPhysicalMemoryImpl before https://crrev.com/c/6274964.
+// See Electron patch adding this fallback for more details.
+ByteCount AmountOfPhysicalMemoryFallback() {
+  struct host_basic_info hostinfo;
+  mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
+  base::apple::ScopedMachSendRight host(mach_host_self());
+  int result = host_info(host.get(), HOST_BASIC_INFO,
+                         reinterpret_cast<host_info_t>(&hostinfo), &count);
+  if (result != KERN_SUCCESS) {
+    NOTREACHED();
+  }
+  DCHECK_EQ(HOST_BASIC_INFO_COUNT, count);
+  return ByteCount::FromUnsigned(hostinfo.max_mem);
+}
+
+}
 
 namespace internal {
 
@@ -54,7 +74,10 @@ ByteCount SysInfo::AmountOfPhysicalMemoryImpl() {
   uint64_t physical_memory;
   size_t size = sizeof(physical_memory);
   int rv = sysctlbyname("hw.memsize", &physical_memory, &size, nullptr, 0);
-  PCHECK(rv == 0) << "sysctlbyname(\"hw.memsize\")";
+  // Instead of crashing, fallback to the old implementation.
+  if (rv != 0) {
+    return AmountOfPhysicalMemoryFallback();
+  }
   return ByteCount::FromUnsigned(physical_memory);
 }
 
