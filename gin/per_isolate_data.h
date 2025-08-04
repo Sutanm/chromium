@@ -34,6 +34,10 @@ class GIN_EXPORT PerIsolateData {
     // be entered before the observer is notified, but there will not be a
     // handle scope by default.
     virtual void OnBeforeDispose(v8::Isolate* isolate) = 0;
+
+    // Called just before the microtasks runner is about to be disposed.
+    virtual void OnBeforeMicrotasksRunnerDispose(v8::Isolate* isolate) = 0;
+
     // Called just after the isolate has been disposed.
     virtual void OnDisposed() = 0;
   };
@@ -61,24 +65,29 @@ class GIN_EXPORT PerIsolateData {
   void SetObjectTemplate(const WrapperInfo* info,
                          v8::Local<v8::ObjectTemplate> object_template);
 
-  void SetFunctionTemplate(DeprecatedWrapperInfo* info,
-                           v8::Local<v8::FunctionTemplate> function_template);
+  void DeprecatedSetFunctionTemplate(
+      DeprecatedWrapperInfo* info,
+      v8::Local<v8::FunctionTemplate> function_template);
 
-  // These are low-level functions for retrieving object or function templates
-  // stored in this object. Because these templates are often created lazily,
-  // most clients should call higher-level functions that know how to populate
-  // these templates if they haven't already been created.
+  void SetFunctionTemplate(
+      const WrapperInfo* info,
+      v8::Local<v8::FunctionTemplate> function_template);
+
   v8::Local<v8::ObjectTemplate> DeprecatedGetObjectTemplate(
       DeprecatedWrapperInfo* info);
 
   v8::Local<v8::ObjectTemplate> GetObjectTemplate(const WrapperInfo* info);
 
-  v8::Local<v8::FunctionTemplate> GetFunctionTemplate(
+  v8::Local<v8::FunctionTemplate> DeprecatedGetFunctionTemplate(
       DeprecatedWrapperInfo* info);
+
+  v8::Local<v8::FunctionTemplate> GetFunctionTemplate(
+      const WrapperInfo* info);
 
   void AddDisposeObserver(DisposeObserver* observer);
   void RemoveDisposeObserver(DisposeObserver* observer);
   void NotifyBeforeDispose();
+  void NotifyBeforeMicrotasksRunnerDispose();
   void NotifyDisposed();
 
   void EnableIdleTasks(std::unique_ptr<V8IdleTaskRunner> idle_task_runner);
@@ -99,6 +108,8 @@ class GIN_EXPORT PerIsolateData {
   typedef std::map<const WrapperInfo*, v8::Eternal<v8::ObjectTemplate>>
       ObjectTemplateMap;
   typedef std::map<DeprecatedWrapperInfo*, v8::Eternal<v8::FunctionTemplate>>
+      DeprecatedFunctionTemplateMap;
+  typedef std::map<const WrapperInfo*, v8::Eternal<v8::FunctionTemplate>>
       FunctionTemplateMap;
 
   // PerIsolateData doesn't actually own |isolate_|. Instead, the isolate is
@@ -107,6 +118,7 @@ class GIN_EXPORT PerIsolateData {
   raw_ptr<v8::ArrayBuffer::Allocator, DanglingUntriaged> allocator_;
   DeprecatedObjectTemplateMap deprecated_object_templates_;
   ObjectTemplateMap object_templates_;
+  DeprecatedFunctionTemplateMap deprecated_function_templates_;
   FunctionTemplateMap function_templates_;
   base::ObserverList<DisposeObserver> dispose_observers_;
   std::shared_ptr<V8ForegroundTaskRunnerBase> task_runner_;

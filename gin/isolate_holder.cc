@@ -225,6 +225,7 @@ void IsolateHolder::WillCreateMicrotasksRunner() {
 
 void IsolateHolder::WillDestroyMicrotasksRunner() {
   DCHECK(g_initialized_microtasks_runner);
+  isolate_data_->NotifyBeforeMicrotasksRunnerDispose();
   g_destroyed_microtasks_runner = true;
 }
 

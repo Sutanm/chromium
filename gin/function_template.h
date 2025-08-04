@@ -77,6 +77,7 @@ class GIN_EXPORT CallbackHolderBase {
                     CallbackHolderBase* holder);
     ~DisposeObserver() override;
     void OnBeforeDispose(v8::Isolate* isolate) override;
+    void OnBeforeMicrotasksRunnerDispose(v8::Isolate* isolate) override {}
     void OnDisposed() override;
 
    private:

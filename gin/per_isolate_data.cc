@@ -79,8 +79,13 @@ void PerIsolateData::SetObjectTemplate(
   object_templates_[info] = Eternal<ObjectTemplate>(isolate_, templ);
 }
 
-void PerIsolateData::SetFunctionTemplate(DeprecatedWrapperInfo* info,
-                                         Local<FunctionTemplate> templ) {
+void PerIsolateData::DeprecatedSetFunctionTemplate(
+    DeprecatedWrapperInfo* info, Local<FunctionTemplate> templ) {
+  deprecated_function_templates_[info] = Eternal<FunctionTemplate>(isolate_, templ);
+}
+
+void PerIsolateData::SetFunctionTemplate(
+    const WrapperInfo* info, Local<FunctionTemplate> templ) {
   function_templates_[info] = Eternal<FunctionTemplate>(isolate_, templ);
 }
 
@@ -103,11 +108,22 @@ v8::Local<v8::ObjectTemplate> PerIsolateData::GetObjectTemplate(
   return it->second.Get(isolate_);
 }
 
-v8::Local<v8::FunctionTemplate> PerIsolateData::GetFunctionTemplate(
+v8::Local<v8::FunctionTemplate> PerIsolateData::DeprecatedGetFunctionTemplate(
     DeprecatedWrapperInfo* info) {
-  FunctionTemplateMap::iterator it = function_templates_.find(info);
-  if (it == function_templates_.end())
+  DeprecatedFunctionTemplateMap::iterator it =
+      deprecated_function_templates_.find(info);
+  if (it == deprecated_function_templates_.end()) {
     return v8::Local<v8::FunctionTemplate>();
+  }
+  return it->second.Get(isolate_);
+}
+
+v8::Local<v8::FunctionTemplate> PerIsolateData::GetFunctionTemplate(
+    const WrapperInfo* info) {
+  FunctionTemplateMap::iterator it = function_templates_.find(info);
+  if (it == function_templates_.end()) {
+    return v8::Local<v8::FunctionTemplate>();
+  }
   return it->second.Get(isolate_);
 }
 
@@ -122,6 +138,12 @@ void PerIsolateData::RemoveDisposeObserver(DisposeObserver* observer) {
 void PerIsolateData::NotifyBeforeDispose() {
   for (auto& observer : dispose_observers_) {
     observer.OnBeforeDispose(isolate_.get());
+  }
+}
+
+void PerIsolateData::NotifyBeforeMicrotasksRunnerDispose() {
+  for (auto& observer : dispose_observers_) {
+    observer.OnBeforeMicrotasksRunnerDispose(isolate_.get());
   }
 }
 
