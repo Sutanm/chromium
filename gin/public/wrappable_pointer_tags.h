@@ -72,7 +72,10 @@ enum WrappablePointerTag : uint16_t {
   kTextInputControllerBindings,  // content::TextInputControllerBindings
   kWebAXObjectProxy,             // content::WebAXObjectProxy
   kWrappedExceptionHandler,      // extensions::WrappedExceptionHandler
-  kLastPointerTag = kWrappedExceptionHandler,
+  kElectronApp,                         // electron::api::App
+  kElectronSession,                     // electron::api::Session
+  kElectronEvent,                       // gin_helper::internal::Event
+  kLastPointerTag = kElectronEvent,
 };
 
 static_assert(kLastPointerTag <
