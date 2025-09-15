@@ -10,6 +10,7 @@ import("//components/os_crypt/sync/features.gni")
 component("sync") {
   # New code should use os_crypt async.
   visibility = [
+    "//electron:*",
     "//chrome/browser",
     "//chrome/browser/prefs:impl",
     "//chrome/browser/ui",
