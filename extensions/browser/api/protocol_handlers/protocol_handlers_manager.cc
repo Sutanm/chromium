@@ -129,7 +129,12 @@ void ProtocolHandlersManager::ProtocolHandlersSanityCheck() {
   auto* ph_registry =
       ExtensionsBrowserClient::Get()->GetProtocolHandlerRegistry(
           browser_context_);
-  DCHECK(ph_registry);
+
+  // TODO(samuelmaddock): Add support for extensions protocol handler. For now,
+  // let's ignore this.
+  if (!ph_registry)
+    return;
+
   for (const auto& handler : ph_registry->GetExtensionProtocolHandlers()) {
     DCHECK(handler.extension_id());
     if (!enabled_ids.contains(*handler.extension_id())) {
