@@ -3774,6 +3774,17 @@
       ]
     },
     {
+      "id": 471,
+      "description": "IMG drivers can sometimes reference previously bound complete framebuffers.",
+      "os": {
+        "type": "android"
+      },
+      "gl_vendor": "Imagination.*",
+      "features": [
+        "ensure_previous_framebuffer_not_deleted"
+      ]
+    },
+    {
       "id": 472,
       "description": "Validate GL_MAX_*_UNIFORM_BLOCKS at compile time instead of link time to work around compiler bugs.",
       "os": {
