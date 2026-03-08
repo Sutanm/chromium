@@ -40,6 +40,8 @@ std::unique_ptr<WorkerSettings> WorkerSettings::Copy(
       old_settings->strictly_block_blockable_mixed_content_;
   new_settings->generic_font_family_settings_ =
       old_settings->generic_font_family_settings_;
+  new_settings->node_integration_in_worker_ =
+      old_settings->node_integration_in_worker_;
   return new_settings;
 }
 

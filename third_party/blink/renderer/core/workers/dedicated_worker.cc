@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/web_frame_widget_impl.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
+#include "third_party/blink/renderer/core/exported/web_view_impl.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/inspector/main_thread_debugger.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
@@ -555,6 +556,12 @@ DedicatedWorker::CreateGlobalScopeCreationParams(
     auto* frame = window->GetFrame();
     parent_devtools_token = frame->GetDevToolsFrameToken();
     settings = std::make_unique<WorkerSettings>(frame->GetSettings());
+    if (auto* web_local_frame = WebLocalFrameImpl::FromFrame(frame)) {
+      if (auto* web_view = web_local_frame->ViewImpl()) {
+        settings->SetNodeIntegrationInWorker(
+            web_view->GetWebPreferences().node_integration_in_worker);
+      }
+    }
     agent_group_scheduler_compositor_task_runner =
         execution_context->GetScheduler()
             ->ToFrameScheduler()
