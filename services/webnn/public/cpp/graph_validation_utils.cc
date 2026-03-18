@@ -58,6 +58,8 @@ static constexpr char kVarianceParam[] = "variance";
 static constexpr char kWeightParam[] = "weight";
 static constexpr char kZeroPointParam[] = "zeroPoint";
 
+}  // namespace
+
 // Validate and calculate the output spatial dimensions of conv2d given
 // input sizes, filter sizes, padding, strides and dilations.
 // Return the calculated output sizes in double precision floating point number
@@ -101,6 +103,8 @@ ValidateAndCalculateConv2dOutputSizes(const uint32_t input_height,
   return Size2d<double>{.height = float_output_height.value(),
                         .width = float_output_width.value()};
 }
+
+namespace {
 
 // Validate and calculate the output spatial dimensions of convTranspose2d given
 // input sizes, filter sizes, padding, strides, dilations and output padding.

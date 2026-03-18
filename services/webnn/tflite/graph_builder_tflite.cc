@@ -196,40 +196,50 @@ struct PaddingSizes {
 
 // Helper to calculate the explicit padding for tflite::Padding_SAME mode with
 // https://www.tensorflow.org/versions/r2.14/api_docs/python/tf/nn#notes_on_padding_2.
+// For transpose conv, caller should pass output size as input_size.
 std::optional<PaddingSizes> CalculateExplicitPaddingForSamePaddingMode(
     uint32_t input_size,
     uint32_t filter_size,
     uint32_t stride,
-    uint32_t dilation,
-    bool is_transposed_conv2d) {
-  auto checked_dilated_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  auto checked_input_size = base::MakeCheckedNum<uint32_t>(input_size);
-  base::CheckedNumeric<uint32_t> checked_total_padding;
-  if (is_transposed_conv2d) {
-    // The checked_total_padding (beginningPadding + endingPadding) can be
-    // calculated from the expression `outputSize = (inputSize - 1) * stride +
-    // (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding` that
-    // is documented in the section of computing convtranspose output size:
-    // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-convtranspose2d
-    checked_total_padding = (checked_input_size - 1) * stride +
-                            checked_dilated_filter_size -
-                            checked_input_size * stride;
-  } else {
-    auto checked_output_size = (checked_input_size + stride - 1) / stride;
-    auto checked_needed_input_size =
-        (checked_output_size - 1) * stride + checked_dilated_filter_size;
-    if (!checked_needed_input_size.IsValid()) {
-      return std::nullopt;
-    }
-    checked_total_padding = checked_needed_input_size.ValueOrDie() > input_size
-                                ? checked_needed_input_size - input_size
-                                : base::MakeCheckedNum<uint32_t>(0);
+    uint32_t dilation) {
+  // The SAME padding mode in TFLite follows the formula:
+  // output_size = ceil(input_size / stride)
+  // total_padding = (output_size - 1) * stride + dilated_filter_size -
+  // input_size See:
+  // https://www.tensorflow.org/versions/r2.14/api_docs/python/tf/nn#notes_on_padding_2
+  auto checked_dilated_filter_size = base::CheckedNumeric<int32_t>(filter_size);
+  checked_dilated_filter_size -= 1;
+  checked_dilated_filter_size *= base::CheckedNumeric<int32_t>(dilation);
+  checked_dilated_filter_size += 1;
+
+  auto checked_input_size = base::CheckedNumeric<int32_t>(input_size);
+  auto checked_stride = base::CheckedNumeric<int32_t>(stride);
+  base::CheckedNumeric<int32_t> checked_output_size = checked_input_size;
+  checked_output_size += checked_stride;
+  checked_output_size -= 1;
+  checked_output_size /= checked_stride;
+
+  base::CheckedNumeric<int32_t> checked_needed_input_size = checked_output_size;
+  checked_needed_input_size -= 1;
+  checked_needed_input_size *= checked_stride;
+  checked_needed_input_size += checked_dilated_filter_size;
+  if (!checked_needed_input_size.IsValid()) {
+    return std::nullopt;
   }
+  uint32_t needed_input_size;
+  if (!checked_needed_input_size.AssignIfValid(&needed_input_size)) {
+    return std::nullopt;
+  }
+  base::CheckedNumeric<uint32_t> checked_total_padding =
+      needed_input_size > input_size
+          ? base::CheckedNumeric<uint32_t>(needed_input_size) - input_size
+          : base::CheckedNumeric<uint32_t>(0);
 
   // Same upper padding.
-  auto checked_padding_begin = checked_total_padding / 2;
-  auto checked_padding_end = (checked_total_padding + 1) / 2;
+  base::CheckedNumeric<uint32_t> checked_padding_begin =
+      checked_total_padding / 2;
+  base::CheckedNumeric<uint32_t> checked_padding_end =
+      (checked_total_padding + 1) / 2;
   uint32_t padding_begin, padding_end;
   if (!checked_padding_begin.AssignIfValid(&padding_begin) ||
       !checked_padding_end.AssignIfValid(&padding_end)) {
@@ -244,13 +254,48 @@ struct TfLitePadding {
   std::optional<std::array<uint32_t, 4>> paddings;
 };
 
-// Helper to get tflite padding mode for convolution 2d or pooling 2d.
+// Calculate explicit padding end to ensure TFLite's VALID padding produces the
+// expected WebNN output shape for ceil rounding type.
+base::expected<uint32_t, std::string> CalculatePaddingEndForCeilRoundingType(
+    uint32_t input_size,
+    uint32_t filter_size,
+    uint32_t stride,
+    uint32_t dilation,
+    uint32_t output_size,
+    uint32_t padding_begin) {
+  // Calculate the dilated filter sizes that are validated in graph validation.
+  auto checked_effective_filter_size =
+      base::CheckedNumeric<int32_t>(filter_size);
+  checked_effective_filter_size -= 1;
+  checked_effective_filter_size *= base::CheckedNumeric<int32_t>(dilation);
+  checked_effective_filter_size += 1;
+  CHECK(checked_effective_filter_size.IsValid());
+
+  // Adjust ending padding to match the specified output.
+  auto checked_padding_end_int32 = base::CheckedNumeric<int32_t>(output_size);
+  checked_padding_end_int32 -= 1;
+  checked_padding_end_int32 *= base::CheckedNumeric<int32_t>(stride);
+  checked_padding_end_int32 += checked_effective_filter_size;
+  checked_padding_end_int32 -= base::CheckedNumeric<int32_t>(input_size);
+  checked_padding_end_int32 -= base::CheckedNumeric<int32_t>(padding_begin);
+
+  auto checked_padding_end = checked_padding_end_int32.Cast<uint32_t>();
+  // Check if the value is valid for rounding to uint32_t type.
+  if (!checked_padding_end.IsValid()) {
+    return base::unexpected("The padding end is too large.");
+  }
+  return checked_padding_end.ValueOrDie();
+}
+
+// Helper to get tflite padding mode for convolution 2d or pooling 2d floor
+// rounding type, not ceil.
 base::expected<TfLitePadding, std::string> GetTfLitePaddingMode(
     const mojom::Padding2d& padding2d,
     const webnn::Size2d<uint32_t>& input,
     const webnn::Size2d<uint32_t>& filter,
     const mojom::Size2d& stride,
     const mojom::Size2d& dilation,
+    const webnn::Size2d<uint32_t>& output,
     bool is_transposed_conv2d) {
   // WebNN explicit padding is in [beginning_height, ending_height,
   // beginning_width, ending_width] sequence.
@@ -264,13 +309,18 @@ base::expected<TfLitePadding, std::string> GetTfLitePaddingMode(
 
   // Convert the explicit padding to tflite same padding mode, The TFLite PAD
   // operator need to be inserted if the calculated padding are not the same as
-  // explicit padding.
+  // explicit padding for direct conv.
+  //
+  // In TFLite, TransposeConv's SAME padding is calculated based on the
+  // output size. See:
+  // https://source.chromium.org/chromium/chromium/src/+/main:third_party/litert/src/tflite/kernels/transpose_conv.cc;drc=7d88950ea445f5b671d18e64f9614aff397fde50;l=841
+  const uint32_t height_size =
+      is_transposed_conv2d ? output.height : input.height;
+  const uint32_t width_size = is_transposed_conv2d ? output.width : input.width;
   const auto padding_height = CalculateExplicitPaddingForSamePaddingMode(
-      input.height, filter.height, stride.height, dilation.height,
-      is_transposed_conv2d);
+      height_size, filter.height, stride.height, dilation.height);
   const auto padding_width = CalculateExplicitPaddingForSamePaddingMode(
-      input.width, filter.width, stride.width, dilation.width,
-      is_transposed_conv2d);
+      width_size, filter.width, stride.width, dilation.width);
   if (!padding_height || !padding_width) {
     return base::unexpected("Failed to calculate explicit padding.");
   }
@@ -281,9 +331,87 @@ base::expected<TfLitePadding, std::string> GetTfLitePaddingMode(
     return TfLitePadding{.mode = ::tflite::Padding_SAME};
   }
 
+  // TFLite's TransposeConv SAME padding mode doesn't support output padding.
+  // Passing output size with non-zero output padding won't match and select
+  // TFLite SAME padding mode.
+  // TODO(crbug.com/493652470): Support explicit padding for transpose conv2d.
+  if (is_transposed_conv2d) {
+    return base::unexpected(
+        "Explicit padding is not supported for transpose conv2d.");
+  }
+
   // The explicit padding are used to insert a TfLite PAD operator.
   return TfLitePadding{.mode = ::tflite::Padding_VALID,
                        .paddings = explicit_padding};
+}
+
+// Helper to get tflite padding mode for pooling 2d.
+base::expected<TfLitePadding, std::string> GetPool2dTfLitePaddingMode(
+    const mojom::Padding2d& padding2d,
+    const webnn::Size2d<uint32_t>& input,
+    const webnn::Size2d<uint32_t>& filter,
+    const mojom::Size2d& stride,
+    const mojom::Size2d& dilation,
+    const webnn::Size2d<uint32_t>& output) {
+  // TFLite always performs a floor operation in VALID mode. If WebNN's
+  // RoundingType is ceil, the `actual_output_height` might be 1 greater than
+  // what TFLite's VALID padding formula (floor based) would produce. In this
+  // case, the ending_padding must be increased to ensure the TFLite internal
+  // division result is large enough that its floor matches WebNN's ceil.
+  //
+  // Calculate double output sizes to get the type of rounding.
+  webnn::Padding2d webnn_padding2d = {
+      .beginning =
+          webnn::Size2d<uint32_t>{.height = padding2d.beginning->height,
+                                  .width = padding2d.beginning->width},
+      .ending = webnn::Size2d<uint32_t>{.height = padding2d.ending->height,
+                                        .width = padding2d.ending->width}};
+  webnn::Size2d<uint32_t> webnn_strides = {.height = stride.height,
+                                           .width = stride.width};
+  webnn::Size2d<uint32_t> webnn_dilations = {.height = dilation.height,
+                                             .width = dilation.width};
+  ASSIGN_OR_RETURN(
+      const webnn::Size2d<double> calculated_output_sizes,
+      ValidateAndCalculateConv2dOutputSizes(
+          input.height, input.width, filter.height, filter.width,
+          webnn_padding2d, webnn_strides, webnn_dilations, "Pool2d"));
+
+  // Get the actual integer output size from the output operand and compare to
+  // determine rounding type.
+  const uint32_t actual_output_height = output.height;
+  const uint32_t actual_output_width = output.width;
+  if (actual_output_height ==
+          base::ClampFloor<uint32_t>(calculated_output_sizes.height) &&
+      actual_output_width ==
+          base::ClampFloor<uint32_t>(calculated_output_sizes.width)) {
+    // Use TFLite's SAME padding mode if it matches WebNN explicit padding.
+    // Otherwise, a TFLite PAD operator will be inserted later using VALID
+    // padding.
+    return GetTfLitePaddingMode(padding2d, input, filter, stride, dilation,
+                                output, /*is_transposed_conv2d=*/false);
+  } else if (actual_output_height ==
+                 base::ClampCeil<uint32_t>(calculated_output_sizes.height) &&
+             actual_output_width ==
+                 base::ClampCeil<uint32_t>(calculated_output_sizes.width)) {
+    ASSIGN_OR_RETURN(
+        const uint32_t padding_height_end,
+        CalculatePaddingEndForCeilRoundingType(
+            input.height, filter.height, stride.height, dilation.height,
+            output.height, padding2d.beginning->height));
+    ASSIGN_OR_RETURN(
+        const uint32_t padding_width_end,
+        CalculatePaddingEndForCeilRoundingType(
+            input.width, filter.width, stride.width, dilation.width,
+            output.width, padding2d.beginning->width));
+    std::array<uint32_t, 4> explicit_padding = {
+        padding2d.beginning->height, padding_height_end,
+        padding2d.beginning->width, padding_width_end};
+    // The explicit padding are used to insert a TfLite PAD operator.
+    return TfLitePadding{.mode = ::tflite::Padding_VALID,
+                         .paddings = explicit_padding};
+  }
+
+  return base::unexpected("Output size does not match floor or ceil rounding.");
 }
 
 // Sort the indexes of the elements in the axes array based on their values and
@@ -3849,10 +3977,47 @@ auto GraphBuilderTflite::SerializeConv2d(const mojom::Conv2d& conv2d)
   const auto& filter_shape = filter_operand.descriptor.shape();
   const webnn::Size2d<uint32_t> filter_size2d = {.height = filter_shape[1],
                                                  .width = filter_shape[2]};
+
+  if (conv2d.kind == mojom::Conv2d::Kind::kDirect) {
+    // Calculate the im2col temp tensor size [batch_size * output_height *
+    // output_width * input_channels * filter_height, filter_width].
+    const base::CheckedNumeric<int32_t> im2col_elements =
+        base::CheckedNumeric<int32_t>(input_shape[0]) * output_shape[1] *
+        output_shape[2] * input_channels * filter_size2d.height *
+        filter_size2d.width;
+
+    // Check against the 32-bit signed integer limit to avoid overflow in
+    // TFLite.
+    if (!im2col_elements.IsValid()) {
+      return base::unexpected(
+          "Conv2d doesn't support configurations that require an internal "
+          "computation buffer exceeding INT32_MAX elements.");
+    }
+  }
+
+  if (conv2d.kind == mojom::Conv2d::Kind::kTransposed) {
+    // Calculate the col2im temp tensor size [input_height * input_width,
+    // filter_height * filter_width * output_depth].
+    const base::CheckedNumeric<int32_t> col2im_elements =
+        base::CheckedNumeric<int32_t>(input_size2d.height) *
+        input_size2d.width * filter_size2d.height * filter_size2d.width *
+        output_channels;
+
+    // Check against the 32-bit signed integer limit to avoid overflow in
+    // TFLite.
+    if (!col2im_elements.IsValid()) {
+      return base::unexpected(
+          "convTranspose2d doesn't support configurations that require an "
+          "internal computation buffer exceeding INT32_MAX elements.");
+    }
+  }
+
+  const webnn::Size2d<uint32_t> output_size2d = {.height = output_shape[1],
+                                                 .width = output_shape[2]};
   ASSIGN_OR_RETURN(
       TfLitePadding padding_mode,
       GetTfLitePaddingMode(*conv2d.padding, input_size2d, filter_size2d,
-                           *conv2d.strides, *conv2d.dilations,
+                           *conv2d.strides, *conv2d.dilations, output_size2d,
                            conv2d.kind == mojom::Conv2d::Kind::kTransposed));
 
   std::optional<FusedActivationOutputInfo> fused_activation =
@@ -6584,11 +6749,10 @@ auto GraphBuilderTflite::SerializePool2d(const mojom::Pool2d& pool2d)
   CHECK_EQ(input_shape.size(), 4u);
   const webnn::Size2d<uint32_t> input_size2d = {.height = input_shape[1],
                                                 .width = input_shape[2]};
-  ASSIGN_OR_RETURN(
-      TfLitePadding padding_mode,
-      GetTfLitePaddingMode(*pool2d.padding, input_size2d, filter_size2d,
-                           *pool2d.strides, *pool2d.dilations,
-                           /*is_transposed_conv2d=*/false));
+  ASSIGN_OR_RETURN(TfLitePadding padding_mode,
+                   GetPool2dTfLitePaddingMode(
+                       *pool2d.padding, input_size2d, filter_size2d,
+                       *pool2d.strides, *pool2d.dilations, output_size2d));
   ASSIGN_OR_RETURN(
       const TensorInfo& input_tensor_info,
       SerializeInputTensorInfo(
