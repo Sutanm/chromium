@@ -1136,14 +1136,8 @@ bool PrerenderHostRegistry::CancelNewTabHostInternal(
   prerender_new_tab_handle_by_frame_tree_node_id_.erase(iter);
   NotifyCancel(frame_tree_node_id, reason);
 
-  if (reason.final_status() == PrerenderFinalStatus::kSpeculationRuleRemoved) {
-    auto& new_tab_registry = handle->GetPrerenderHostRegistry();
-    new_tab_registry.SchedulePendingDeletionPrerenderNewTabHandle(
-        std::move(handle));
-    new_tab_registry.CancelHost(frame_tree_node_id, reason);
-  } else {
-    handle->CancelPrerendering(reason);
-  }
+  PrerenderNewTabHandle::CancelPrerenderingAndDestroy(std::move(handle),
+                                                      reason);
 
   return true;
 }
@@ -1806,6 +1800,7 @@ void PrerenderHostRegistry::DeletePendingDeletionHosts(
 }
 
 void PrerenderHostRegistry::SchedulePendingDeletionPrerenderNewTabHandle(
+    base::PassKey<PrerenderNewTabHandle>,
     std::unique_ptr<PrerenderNewTabHandle> handle) {
   CHECK(!pending_deletion_new_tab_prerender_handle_);
   pending_deletion_new_tab_prerender_handle_ = std::move(handle);

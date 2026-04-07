@@ -288,6 +288,10 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   PrerenderHostId GetPrerenderHostIdForNavigation(
       NavigationRequest* navigation_request);
 
+  void SchedulePendingDeletionPrerenderNewTabHandle(
+      base::PassKey<PrerenderNewTabHandle>,
+      std::unique_ptr<PrerenderNewTabHandle> handle);
+
  private:
   // WebContentsObserver implementation:
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
@@ -309,8 +313,6 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   void ScheduleToDeleteAbandonedHost(
       std::unique_ptr<PrerenderHost> prerender_host,
       const PrerenderCancellationReason& cancellation_reason);
-  void SchedulePendingDeletionPrerenderNewTabHandle(
-      std::unique_ptr<PrerenderNewTabHandle> handle);
 
   void DeleteAbandonedHosts();
 
