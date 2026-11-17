@@ -111,6 +111,10 @@ memory_instrumentation::mojom::ProcessType GetCoordinatorClientProcessType(
       return memory_instrumentation::mojom::ProcessType::UTILITY;
     case PROCESS_TYPE_GPU:
       return memory_instrumentation::mojom::ProcessType::GPU;
+    // PPAPI revival: the plugin (and broker) processes map to PLUGIN.
+    case PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+    case PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      return memory_instrumentation::mojom::ProcessType::PLUGIN;
     default:
       NOTREACHED();
   }
@@ -390,6 +394,10 @@ void BrowserChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
 
   DCHECK(has_legacy_ipc_channel_);
   is_channel_connected_ = true;
+  // PPAPI revival: 140 no longer forwards the connection notification to the
+  // delegate, but the pepper plugin host needs it to send PpapiMsg_LoadPlugin
+  // and to flush pending channel requests.
+  delegate_->OnChannelConnected(peer_pid);
   OnProcessConnected();
 }
 
@@ -433,6 +441,19 @@ void BrowserChildProcessHostImpl::TerminateOnBadMessageReceived(
   base::debug::DumpWithoutCrashing();
 
   TerminateProcessForBadMessage(weak_factory_.GetWeakPtr(), error);
+}
+
+// PPAPI revival: default legacy IPC delivery for browser child process hosts.
+bool BrowserChildProcessHostDelegate::OnMessageReceived(
+    const IPC::Message& message) {
+  return false;
+}
+// PPAPI revival: forward legacy IPC messages from the child to our delegate
+// (Chromium 140 stopped overriding this, so pepper messages were dropped).
+bool BrowserChildProcessHostImpl::OnMessageReceived(
+    const IPC::Message& message) {
+  LOG(ERROR) << "[ppdbg] child host msg type=" << message.type();
+  return delegate_->OnMessageReceived(message);
 }
 
 void BrowserChildProcessHostImpl::OnChannelInitialized(IPC::Channel* channel) {

@@ -4,6 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
+import("//ppapi/buildflags/buildflags.gni")
 import("//build/config/ui.gni")
 import("//content/browser/devtools/features.gni")
 import("//content/public/common/features.gni")
@@ -356,6 +357,10 @@ source_set("common_sources") {
   if (use_clang_profiling_inside_sandbox) {
     sources += [ "profiling_utils.h" ]
   }
+  if (enable_ppapi) {
+  deps += [ "//ppapi/buildflags" ]
+        deps += [ "//ppapi/c" ]
+      }
 }
 
 _common_param_traits_headers = [ "common_param_traits_macros.h" ]

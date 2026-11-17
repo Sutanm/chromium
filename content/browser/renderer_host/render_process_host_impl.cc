@@ -6,6 +6,8 @@
 // channel. There will be one RenderProcessHost per renderer process.
 
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/plugin_service_impl.h"
+#include "content/browser/renderer_host/pepper/pepper_renderer_connection.h"
 
 #include <algorithm>
 #include <atomic>
@@ -1545,6 +1547,9 @@ RenderProcessHostImpl::RenderProcessHostImpl(
       channel_connected_(false),
       sent_render_process_ready_(false),
       shutdown_exit_code_(-1) {
+  pepper_renderer_connection_ = base::MakeRefCounted<PepperRendererConnection>(
+      GetID().GetUnsafeValue(), PluginServiceImpl::GetInstance(),
+      GetBrowserContext(), GetStoragePartition());
   CHECK(!browser_context->ShutdownStarted());
   TRACE_EVENT("shutdown", "RenderProcessHostImpl",
               ChromeTrackEvent::kRenderProcessHost, *this);
@@ -3449,6 +3454,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       sandbox::policy::switches::kEnableSandboxLogging,
 #endif
       switches::kAllowCommandLinePlugins,
+    // PPAPI revival: renderers parse --register-pepper-plugins themselves.
+    switches::kRegisterPepperPlugins,
       switches::kAllowLoopbackInPeerConnection,
       switches::kAudioBufferSize,
       switches::kAutoplayPolicy,
@@ -3838,6 +3845,12 @@ bool RenderProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
 
   if (deleting_soon_ || fast_shutdown_started_)
     return false;
+
+  // PPAPI revival: give the pepper connection a chance to handle the message.
+  if (pepper_renderer_connection_ &&
+      pepper_renderer_connection_->OnMessageReceived(msg)) {
+    return true;
+  }
 
   mark_child_process_activity_time();
 

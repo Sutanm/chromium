@@ -289,6 +289,7 @@ void ChannelMojo::OnPeerPidReceived(int32_t peer_pid) {
 }
 
 void ChannelMojo::OnMessageReceived(const Message& message) {
+  LOG(ERROR) << "[ppdbg] ChannelMojo::OnMessageReceived type=" << message.type();
   const Message* message_ptr = &message;
   TRACE_IPC_MESSAGE_SEND("ipc,toplevel", "ChannelMojo::OnMessageReceived",
                          message_ptr);

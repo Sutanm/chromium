@@ -49,6 +49,9 @@ struct CONTENT_EXPORT WebPluginMimeType {
 // Describes an available Pepper plugin.
 struct CONTENT_EXPORT WebPluginInfo {
   enum PluginType {
+    // PPAPI revival: pepper plugin types restored from the pre-M140 layout.
+    PLUGIN_TYPE_PEPPER_IN_PROCESS,
+    PLUGIN_TYPE_PEPPER_OUT_OF_PROCESS,
     PLUGIN_TYPE_BROWSER_INTERNAL_PLUGIN,
     PLUGIN_TYPE_BROWSER_PLUGIN
   };
@@ -83,6 +86,14 @@ struct CONTENT_EXPORT WebPluginInfo {
 
   // Plugin type. See the PluginType enum.
   int type = PLUGIN_TYPE_BROWSER_PLUGIN;
+
+  // PPAPI revival: permission bits when |type| is PLUGIN_TYPE_PEPPER_*.
+  int32_t pepper_permissions = 0;
+
+  bool is_pepper_plugin() const {
+    return type == PLUGIN_TYPE_PEPPER_IN_PROCESS ||
+           type == PLUGIN_TYPE_PEPPER_OUT_OF_PROCESS;
+  }
 
   // The color to use as the background before the plugin loads.
   SkColor background_color = kDefaultBackgroundColor;

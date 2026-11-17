@@ -11,6 +11,9 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "content/common/pepper_plugin.mojom.h"
+#include "content/browser/renderer_host/render_frame_host_impl_ppapi_support.h"
+#include "ppapi/buildflags/buildflags.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
@@ -188,6 +191,17 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
       };
   associated_registry_->AddInterface<mojom::FrameHost>(
       base::BindRepeating(bind_frame_host_receiver, base::Unretained(this)));
+#if BUILDFLAG(ENABLE_PPAPI)
+  // PPAPI revival: expose mojom::PepperHost on the frame's associated registry
+  // (Chromium 140 removed this together with PPAPI).
+  associated_registry_->AddInterface<mojom::PepperHost>(base::BindRepeating(
+      [](RenderFrameHostImpl* impl,
+         mojo::PendingAssociatedReceiver<mojom::PepperHost> receiver) {
+        impl->GetPpapiSupport().Bind(std::move(receiver));
+      },
+      base::Unretained(this)));
+  LOG(INFO) << "[ppdbg] PepperHost registered on frame registry";
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 
   associated_registry_->AddInterface<
       blink::mojom::BackForwardCacheControllerHost>(base::BindRepeating(

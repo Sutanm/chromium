@@ -4,6 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
+import("//ppapi/buildflags/buildflags.gni")
 import("//build/config/ui.gni")
 import("//content/public/common/zygote/features.gni")
 import("//ipc/features.gni")
@@ -409,6 +410,21 @@ source_set("common") {
   if (use_clang_profiling_inside_sandbox) {
     sources += [ "profiling_utils.cc" ]
   }
+  if (enable_ppapi) {
+  deps += [ "//ppapi/buildflags" ]
+      sources += [
+        "pepper_file_util.cc",
+        "pepper_file_util.h",
+        "pepper_plugin_list.cc",
+        "pepper_plugin_list.h",
+        "pepper_renderer_instance_data.cc",
+        "pepper_renderer_instance_data.h",
+      ]
+      deps += [
+        "//ppapi/proxy:ipc",
+        "//ppapi/shared_impl",
+      ]
+    }
 }
 
 # This is used by content/shell as well, which we don't want to depend on the
@@ -458,6 +474,8 @@ mojom("mojo_bindings") {
     "renderer_variations_configuration.mojom",
     "synthetic_trial_configuration.mojom",
     "web_ui.mojom",
+  
+    "pepper_plugin.mojom",
   ]
 
   if (is_linux || is_chromeos) {

@@ -61,11 +61,16 @@ class SchemeHostPort;
 
 namespace content {
 
+class RendererPpapiHost;
+
 class RenderFrame;
 
 // Base class for objects that want to filter incoming IPCs, and also get
 // notified of changes to the frame.
 class CONTENT_EXPORT RenderFrameObserver {
+
+  // PPAPI revival: pepper plugin creation notification.
+  virtual void DidCreatePepperPlugin(RendererPpapiHost* host) {}
  public:
   RenderFrameObserver(const RenderFrameObserver&) = delete;
   RenderFrameObserver& operator=(const RenderFrameObserver&) = delete;

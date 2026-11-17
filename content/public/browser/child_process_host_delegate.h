@@ -22,6 +22,10 @@ class ChildProcessHostDelegate : public IPC::Listener {
   ~ChildProcessHostDelegate() override {}
 
   // Called when the IPC channel for the child process is initialized.
+  // PPAPI revival: legacy IPC delivery to the delegate.
+  bool OnMessageReceived(const IPC::Message& message) override;
+  void OnChannelConnected(int32_t peer_pid) override {}
+
   virtual void OnChannelInitialized(IPC::Channel* channel) {}
 
   // Called when the child process unexpected closes the IPC channel. Delegates

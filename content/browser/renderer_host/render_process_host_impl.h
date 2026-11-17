@@ -142,6 +142,8 @@ class GpuClient;
 }  // namespace viz
 
 namespace content {
+
+class PepperRendererConnection;
 class AgentSchedulingGroupHost;
 class BucketContext;
 class EmbeddedFrameSinkProviderImpl;
@@ -218,6 +220,11 @@ class CONTENT_EXPORT RenderProcessHostImpl
   static RenderProcessHost* CreateRenderProcessHost(
       BrowserContext* browser_context,
       SiteInstanceImpl* site_instance);
+
+  // PPAPI revival: legacy pepper message filter for this process.
+  PepperRendererConnection* pepper_renderer_connection() {
+    return pepper_renderer_connection_.get();
+  }
 
   ~RenderProcessHostImpl() override;
 
@@ -1294,6 +1301,8 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // The registered IPC listener objects. When this list is empty, we should
   // delete ourselves.
   base::IDMap<IPC::Listener*> listeners_;
+
+  scoped_refptr<PepperRendererConnection> pepper_renderer_connection_;
 
   // Mojo interfaces provided to the child process are registered here if they
   // need consistent delivery ordering with legacy IPC, and are process-wide in

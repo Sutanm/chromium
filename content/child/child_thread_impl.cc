@@ -606,6 +606,8 @@ void ChildThreadImpl::SetFieldTrialGroup(const std::string& trial_name,
 
 void ChildThreadImpl::Init(const Options& options) {
   TRACE_EVENT0("startup", "ChildThreadImpl::Init");
+  LOG(ERROR) << "[ppdbg] ChildThreadImpl::Init legacy="
+             << options.with_legacy_ipc_channel;
   on_channel_error_called_ = false;
   main_thread_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
 
@@ -636,6 +638,7 @@ void ChildThreadImpl::Init(const Options& options) {
         mojo::core::ScopedIPCSupport::ShutdownPolicy::FAST);
 
     mojo::IncomingInvitation invitation = InitializeMojoIPCChannel();
+    LOG(ERROR) << "[ppdbg] mojo invitation valid=" << invitation.is_valid();
     if (!invitation.is_valid()) {
       LOG(ERROR) << "Child process could not find its Mojo invitation";
       base::Process::TerminateCurrentProcessImmediately(0);

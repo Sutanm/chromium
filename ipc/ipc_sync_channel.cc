@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "ipc/ipc_sync_channel.h"
+#include "ipc/ipc_sync_message_filter.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -473,6 +474,14 @@ std::unique_ptr<SyncChannel> SyncChannel::Create(
     WaitableEvent* shutdown_event) {
   return base::WrapUnique(new SyncChannel(
       listener, ipc_task_runner, listener_task_runner, shutdown_event));
+}
+
+// PPAPI revival: restored helper (upstream deleted it with the legacy IPC layer).
+scoped_refptr<IPC::SyncMessageFilter> SyncChannel::CreateSyncMessageFilter() {
+  scoped_refptr<SyncMessageFilter> filter =
+      new SyncMessageFilter(sync_context()->shutdown_event());
+  AddFilter(filter.get());
+  return filter;
 }
 
 SyncChannel::SyncChannel(

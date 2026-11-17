@@ -163,6 +163,17 @@ ChildProcessHostImpl::GetMojoInvitation() {
   return mojo_invitation_;
 }
 
+bool ChildProcessHostImpl::Send(IPC::Message* message) {
+  if (!channel_) {
+    LOG(ERROR) << "[ppdbg] ChildProcessHostImpl::Send no channel";
+    return false;
+  }
+  const int32_t msg_type = message ? message->type() : 0;
+  const bool ok = channel_->Send(message);  // takes ownership of |message|
+  LOG(ERROR) << "[ppdbg] ChildProcessHostImpl::Send type=" << msg_type
+             << " ok=" << ok;
+  return ok;
+}
 void ChildProcessHostImpl::CreateChannelMojo() {
   DCHECK(!channel_);
   DCHECK(child_process_);
@@ -255,7 +266,17 @@ void ChildProcessHostImpl::BindHostReceiver(
   delegate_->BindHostReceiver(std::move(receiver));
 }
 
+// PPAPI revival: forward legacy IPC messages to the delegate again.
+bool ChildProcessHostImpl::OnMessageReceived(const IPC::Message& message) {
+  return delegate_->OnMessageReceived(message);
+}
+
+// PPAPI revival: keep the delegate informed about the channel handshake.
+bool ChildProcessHostDelegate::OnMessageReceived(const IPC::Message& message) {
+  return false;
+}
 void ChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
+  delegate_->OnChannelConnected(peer_pid);
   // Propagate the pseudonymization salt to all the child processes.
   //
   // Doing this as the first step in this method helps to minimize scenarios

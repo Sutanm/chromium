@@ -286,6 +286,14 @@ extern const char kIpcFuzzerTestcase[];
 // DON'T ADD RANDOM STUFF HERE. Put it in the main section above in
 // alphabetical order, or in one of the ifdefs (also in order in each section).
 
+// PPAPI revival: legacy plugin switches removed in M140+.
+CONTENT_EXPORT extern const char kPpapiInProcess[];
+CONTENT_EXPORT extern const char kPpapiPluginLauncher[];
+CONTENT_EXPORT extern const char kPpapiPluginProcess[];
+CONTENT_EXPORT extern const char kPpapiStartupDialog[];
+CONTENT_EXPORT extern const char kPpapiSubpixelRenderingSetting[];
+CONTENT_EXPORT extern const char kPpapiAntialiasedTextEnabled[];
+CONTENT_EXPORT extern const char kRegisterPepperPlugins[];
 }  // namespace switches
 
 #endif  // CONTENT_PUBLIC_COMMON_CONTENT_SWITCHES_H_

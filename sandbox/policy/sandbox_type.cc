@@ -10,6 +10,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
+#include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/switches.h"
 
 #if BUILDFLAG(IS_CHROMEOS)

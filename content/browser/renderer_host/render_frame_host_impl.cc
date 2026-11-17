@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/render_frame_host_impl_ppapi_support.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -2615,6 +2616,13 @@ RenderFrameHostImpl::RenderFrameHostImpl(
   }
 }
 
+// PPAPI revival: lazily created pepper support bundle.
+RenderFrameHostImplPpapiSupport& RenderFrameHostImpl::GetPpapiSupport() {
+  if (!ppapi_support_) {
+    ppapi_support_ = std::make_unique<RenderFrameHostImplPpapiSupport>(*this);
+  }
+  return *ppapi_support_;
+}
 RenderFrameHostImpl::~RenderFrameHostImpl() {
   TRACE_EVENT_WITH_FLOW0("navigation",
                          "RenderFrameHostImpl::~RenderFrameHostImpl",

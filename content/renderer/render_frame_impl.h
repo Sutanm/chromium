@@ -40,6 +40,7 @@
 #include "content/common/content_export.h"
 #include "content/common/download/mhtml_file_writer.mojom.h"
 #include "content/common/frame.mojom.h"
+#include "content/common/pepper_plugin.mojom.h"
 #include "content/common/navigation_client.mojom.h"
 #include "content/common/renderer.mojom.h"
 #include "content/common/web_ui.mojom.h"
@@ -164,6 +165,9 @@ class SchemeHostPort;
 }  // namespace url
 
 namespace content {
+
+class PepperPluginInstanceImpl;
+class RendererPpapiHost;
 
 class AgentSchedulingGroup;
 class BlinkInterfaceRegistryImpl;
@@ -296,6 +300,22 @@ class CONTENT_EXPORT RenderFrameImpl
 
   // Returns the unique name of the RenderFrame.
   const std::string& unique_name() const { return unique_name_helper_.value(); }
+  // PPAPI revival: pepper integration hooks removed in M140+.
+  int GetRoutingID() override;
+  static RenderFrameImpl* FromRoutingId(int routing_id);
+  mojom::PepperHost* GetPepperHost();
+  void PepperPluginCreated(RendererPpapiHost* host);
+  void PepperInstanceCreated(
+      PepperPluginInstanceImpl* instance,
+      mojo::PendingAssociatedRemote<mojom::PepperPluginInstance> mojo_instance,
+      mojo::PendingAssociatedReceiver<mojom::PepperPluginInstanceHost>
+          mojo_host);
+  void PepperInstanceDeleted(PepperPluginInstanceImpl* instance);
+  void PepperFocusChanged(PepperPluginInstanceImpl* instance, bool focused);
+  void PepperTextInputTypeChanged(PepperPluginInstanceImpl* instance);
+  void PepperSelectionChanged(PepperPluginInstanceImpl* instance);
+  void PepperCaretPositionChanged(PepperPluginInstanceImpl* instance);
+  void PepperCancelComposition(PepperPluginInstanceImpl* instance);
 
   // Returns the blink::WebFrameWidget attached to the local root of this
   // frame.
@@ -1229,6 +1249,12 @@ class CONTENT_EXPORT RenderFrameImpl
   bool in_frame_tree_;
 
   blink::LocalFrameToken frame_token_;
+
+  // PPAPI revival state.
+  int pepper_routing_id_ = -1;
+  mojo::AssociatedRemote<mojom::PepperHost> pepper_host_remote_;
+  std::set<PepperPluginInstanceImpl*> active_pepper_instances_;
+  raw_ptr<PepperPluginInstanceImpl> focused_pepper_plugin_ = nullptr;
 
   const int process_label_id_;
 

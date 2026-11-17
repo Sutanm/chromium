@@ -23,6 +23,9 @@
 
 #include "third_party/blink/renderer/core/page/plugin_data.h"
 
+#include <string>
+
+#include "base/files/file_util.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/plugins/plugin_registry.mojom-blink.h"
@@ -107,6 +110,19 @@ void PluginData::UpdatePluginList() {
       registry.BindNewPipeAndPassReceiver());
   Vector<mojom::blink::PluginInfoPtr> plugins;
   registry->GetPlugins(false, &plugins);
+  {
+    std::string dump = "count=";
+    dump.append(std::to_string(plugins.size())).append("\n");
+    for (const auto& p : plugins) {
+      dump.append(p->name.Utf8());
+      dump.append(" mimes=").append(std::to_string(p->mime_types.size())).append("\n");
+      for (const auto& m : p->mime_types)
+        dump.append("  mime=").append(m->mime_type.Utf8()).append("\n");
+    }
+    base::WriteFile(base::FilePath(FILE_PATH_LITERAL(
+                        "D:\\electron-build\\renderer-plugins.txt")),
+                    dump);
+  }
   for (const auto& plugin : plugins) {
     auto* plugin_info = MakeGarbageCollected<PluginInfo>(
         std::move(plugin->name), FilePathToWebString(plugin->filename),

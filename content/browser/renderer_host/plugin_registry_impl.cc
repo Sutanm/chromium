@@ -57,6 +57,9 @@ void PluginRegistryImpl::GetPluginsComplete(
     const std::vector<WebPluginInfo>& all_plugins) {
   PluginServiceFilter* filter = PluginServiceImpl::GetInstance()->GetFilter();
   std::vector<blink::mojom::PluginInfoPtr> plugins;
+  LOG(INFO) << "[ppdbg] GetPlugins -> all=" << all_plugins.size();
+  for (const auto& p : all_plugins)
+    LOG(INFO) << "[ppdbg]   send name=" << p.name << " path=" << p.path.value();
   RenderProcessHost* rph = RenderProcessHost::FromID(render_process_id_);
   if (!rph) {
     std::move(callback).Run(std::move(plugins));

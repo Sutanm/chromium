@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/common/pepper_plugin_list.h"
 #include "content/browser/plugin_service_impl.h"
 
 #include <stddef.h>
@@ -172,9 +173,16 @@ std::vector<WebPluginInfo> PluginServiceImpl::GetPluginsSynchronous() {
 void PluginServiceImpl::RegisterPlugins() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
+  // PPAPI revival: parse --register-pepper-plugins (Flash) into the plugin
+  // list, as Chromium 138 did here.
+  ComputePepperPluginList(&plugins_);
+
   GetContentClient()->AddPlugins(&plugins_);
   for (const auto& plugin : plugins_)
     RegisterInternalPlugin(plugin.ToWebPluginInfo(), /*add_at_beginning=*/true);
+  LOG(INFO) << "[ppdbg] registered plugins: " << plugins_.size();
+  for (const auto& p : plugins_)
+    LOG(INFO) << "[ppdbg]   plugin path=" << p.path.value() << " oop=" << p.is_out_of_process << " mimes=" << p.mime_types.size();
 }
 
 // There should generally be very few plugins so a brute-force search is fine.
@@ -186,7 +194,16 @@ const ContentPluginInfo* PluginServiceImpl::GetRegisteredPluginInfo(
     if (plugin.path == plugin_path)
       return &plugin;
   }
-  return nullptr;
+  // PPAPI revival: pepper plugins may be registered late (Flash passed
+  // via --register-pepper-plugins); build the plugin info on demand.
+  WebPluginInfo webplugin_info;
+  if (!GetPluginInfoByPath(plugin_path, &webplugin_info))
+    return nullptr;
+  ContentPluginInfo new_pepper_info;
+  if (!MakePepperPluginInfo(webplugin_info, &new_pepper_info))
+    return nullptr;
+  plugins_.push_back(new_pepper_info);
+  return &plugins_.back();
 }
 
 void PluginServiceImpl::SetFilter(PluginServiceFilter* filter) {
@@ -253,4 +270,87 @@ void PluginServiceImpl::GetInternalPlugins(
   PluginList::Singleton()->GetInternalPlugins(plugins);
 }
 
+
+PpapiPluginProcessHost* PluginServiceImpl::FindPpapiPluginProcess(
+    const base::FilePath& plugin_path,
+    const base::FilePath& profile_data_directory,
+    const std::optional<url::Origin>& origin_lock) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  for (PpapiPluginProcessHostIterator iter; !iter.Done(); ++iter) {
+    if (iter->plugin_path() == plugin_path &&
+        iter->profile_data_directory() == profile_data_directory &&
+        (!iter->origin_lock() || iter->origin_lock() == origin_lock)) {
+      return *iter;
+    }
+  }
+  return nullptr;
+}
+
+int PluginServiceImpl::CountPpapiPluginProcessesForProfile(
+    const base::FilePath& plugin_path,
+    const base::FilePath& profile_data_directory) {
+  int count = 0;
+  for (PpapiPluginProcessHostIterator iter; !iter.Done(); ++iter) {
+    if (iter->plugin_path() == plugin_path &&
+        iter->profile_data_directory() == profile_data_directory) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+PpapiPluginProcessHost* PluginServiceImpl::FindOrStartPpapiPluginProcess(
+    int render_process_id,
+    const base::FilePath& plugin_path,
+    const base::FilePath& profile_data_directory,
+    const std::optional<url::Origin>& origin_lock) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  const ContentPluginInfo* info = GetRegisteredPluginInfo(plugin_path);
+  if (!info) {
+    VLOG(1) << "Unable to find ppapi plugin registration for: "
+            << plugin_path.MaybeAsASCII();
+    return nullptr;
+  }
+
+  PpapiPluginProcessHost* plugin_host =
+      FindPpapiPluginProcess(plugin_path, profile_data_directory, origin_lock);
+  if (plugin_host)
+    return plugin_host;
+
+  if (origin_lock.has_value() &&
+      CountPpapiPluginProcessesForProfile(plugin_path,
+                                          profile_data_directory) >=
+          max_ppapi_processes_per_profile_) {
+    return nullptr;
+  }
+
+  plugin_host = PpapiPluginProcessHost::CreatePluginHost(
+      *info, profile_data_directory, origin_lock);
+  if (!plugin_host) {
+    VLOG(1) << "Unable to create ppapi plugin process for: "
+            << plugin_path.MaybeAsASCII();
+  }
+
+  return plugin_host;
+}
+
+void PluginServiceImpl::OpenChannelToPpapiPlugin(
+    int render_process_id,
+    const base::FilePath& plugin_path,
+    const base::FilePath& profile_data_directory,
+    const std::optional<url::Origin>& origin_lock,
+    PpapiPluginProcessHost::PluginClient* client) {
+  LOG(INFO) << "[ppdbg] service OpenChannelToPpapiPlugin";
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  PpapiPluginProcessHost* plugin_host = FindOrStartPpapiPluginProcess(
+      render_process_id, plugin_path, profile_data_directory, origin_lock);
+  if (plugin_host) {
+    plugin_host->OpenChannelToPlugin(client);
+  } else {
+    client->OnPpapiChannelOpened(IPC::ChannelHandle(), base::kNullProcessId, 0);
+  }
+}
 }  // namespace content

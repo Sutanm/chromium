@@ -89,6 +89,7 @@ class BrowserChildProcessHostImpl
   void SetMetricsName(const std::string& metrics_name) override;
 
   // ChildProcessHostDelegate implementation:
+  bool OnMessageReceived(const IPC::Message& message) override;
   void OnChannelInitialized(IPC::Channel* channel) override;
   void OnChildDisconnected() override;
   const base::Process& GetProcess() override;

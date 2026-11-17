@@ -14,10 +14,16 @@
 #include "content/common/content_export.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/webplugininfo.h"
+#include "ppapi/buildflags/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_PLUGINS)
 #error "Plugins should be enabled"
 #endif
+
+#if BUILDFLAG(ENABLE_PPAPI)
+#include "ppapi/c/pp_module.h"
+#include "ppapi/c/ppb.h"
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 
 namespace content {
 
@@ -33,7 +39,32 @@ struct CONTENT_EXPORT ContentPluginInfo {
   // These plugins are implemented in the Chrome binary using a separate set
   // of entry points (see internal_entry_points below).
   // Defaults to false.
+#if BUILDFLAG(ENABLE_PPAPI)
+  // PPAPI revival: plugin entry points restored from the pre-M140 layout.
+  typedef const void* (*GetInterfaceFunc)(const char*);
+  typedef int (*PPP_InitializeModuleFunc)(PP_Module, PPB_GetInterface);
+  typedef void (*PPP_ShutdownModuleFunc)();
+
+  struct EntryPoints {
+    CONTENT_EXPORT EntryPoints();
+
+    GetInterfaceFunc get_interface = nullptr;
+    PPP_InitializeModuleFunc initialize_module = nullptr;
+    PPP_ShutdownModuleFunc shutdown_module = nullptr;  // Optional, may be NULL.
+  };
+#endif  // BUILDFLAG(ENABLE_PPAPI)
   bool is_internal = false;
+
+  // PPAPI revival: pepper plugin hints restored from the pre-M140 layout.
+  bool is_out_of_process = false;
+
+  // Permission bits for the pepper plugin (see ppapi::PpapiPermissions).
+  uint32_t permissions = 0;
+
+#if BUILDFLAG(ENABLE_PPAPI)
+  // Entry points for internal plugins (is_internal == true).
+  EntryPoints internal_entry_points;
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 
   base::FilePath path;  // Internal plugins have "internal-[name]" as path.
   std::string name;

@@ -994,4 +994,12 @@ const char kIpcFuzzerTestcase[] = "ipc-fuzzer-testcase";
 
 // Don't dump stuff here, follow the same order as the header.
 
+// PPAPI revival: legacy plugin switches removed in M140+.
+const char kPpapiInProcess[] = "ppapi-in-process";
+const char kPpapiPluginLauncher[] = "ppapi-plugin-launcher";
+const char kPpapiPluginProcess[] = "ppapi";
+const char kPpapiStartupDialog[] = "ppapi-startup-dialog";
+const char kPpapiSubpixelRenderingSetting[] = "ppapi-subpixel-rendering-setting";
+const char kPpapiAntialiasedTextEnabled[] = "ppapi-antialiased-text-enabled";
+const char kRegisterPepperPlugins[] = "register-pepper-plugins";
 }  // namespace switches

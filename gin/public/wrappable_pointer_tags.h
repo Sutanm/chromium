@@ -67,6 +67,10 @@ enum WrappablePointerTag : uint16_t {
   kWebAXObjectProxy,                    // content::WebAXObjectProxy
   kWrappedExceptionHandler,             // extensions::WrappedExceptionHandler
   kLastPointerTag = kWrappedExceptionHandler,
+
+  // PPAPI revival (content/renderer/pepper).
+  kPepperMessageChannel,
+  kPepperPluginObject,
 };
 
 static_assert(kLastPointerTag <

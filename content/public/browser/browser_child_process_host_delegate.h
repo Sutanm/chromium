@@ -9,6 +9,7 @@
 #include <string>
 
 #include "content/common/content_export.h"
+#include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 
 namespace content {
@@ -17,6 +18,11 @@ namespace content {
 class CONTENT_EXPORT BrowserChildProcessHostDelegate {
  public:
   virtual ~BrowserChildProcessHostDelegate() = default;
+
+  // PPAPI revival: legacy IPC delivery (140 removed these).
+  virtual bool OnMessageReceived(const IPC::Message& message);
+  virtual void OnChannelConnected(int32_t peer_pid) {}
+  virtual void OnChannelError() {}
 
   // Called when the process has been started.
   virtual void OnProcessLaunched() {}

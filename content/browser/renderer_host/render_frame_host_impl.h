@@ -263,6 +263,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotEvictOnAXLocationChange);
 
 namespace content {
 
+class RenderFrameHostImplPpapiSupport;
+
 class AgentSchedulingGroupHost;
 class BrowsingContextState;
 class CodeCacheHostImpl;
@@ -440,6 +442,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const blink::LocalFrameToken* frame_token,
       int initiator_process_id,
       StoragePartitionImpl* storage_partition);
+
+  // PPAPI revival: per-frame pepper support bundle.
+  RenderFrameHostImplPpapiSupport& GetPpapiSupport();
 
   RenderFrameHostImpl(const RenderFrameHostImpl&) = delete;
   RenderFrameHostImpl& operator=(const RenderFrameHostImpl&) = delete;
@@ -5532,6 +5537,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // WeakPtrFactories are the last members, to ensure they are destroyed before
   // all other fields of `this`.
+  std::unique_ptr<RenderFrameHostImplPpapiSupport> ppapi_support_;
+
   base::WeakPtrFactory<RenderFrameHostImpl> weak_ptr_factory_{this};
 
   // Unlike `weak_ptr_factory` which only invalidates when `this` is about to be
@@ -5539,6 +5546,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // the RenderFrame is deleted (for example, if the renderer crashes).
   base::WeakPtrFactory<RenderFrameHostImpl>
       render_frame_scoped_weak_ptr_factory_{this};
+
 };
 
 // Used when DCHECK_STATE_TRANSITION triggers.

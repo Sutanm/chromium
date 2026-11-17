@@ -22,6 +22,8 @@
 #include "base/android/background_thread_pool_field_trial.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
+#include "base/files/file_util.h"
+#include "ppapi/buildflags/buildflags.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
 #include "base/debug/leak_annotations.h"
@@ -205,12 +207,23 @@
 #endif
 
 namespace content {
+
+#define PPAPI_REVIVAL_MARK(tag)                                              \
+  base::WriteFile(                                                           \
+      base::FilePath::FromUTF8Unsafe(                                        \
+          std::string("D:\\electron-build\\init-") + tag + "-" +             \
+          base::NumberToString(base::GetCurrentProcId()) + ".txt"),          \
+      std::string_view(tag))
 extern int GpuMain(MainFunctionParams);
 extern int RendererMain(MainFunctionParams);
 extern int UtilityMain(MainFunctionParams);
+#if BUILDFLAG(ENABLE_PPAPI)
+extern int PpapiPluginMain(MainFunctionParams);
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 }  // namespace content
 
 namespace content {
+
 
 namespace {
 
@@ -572,6 +585,9 @@ NO_STACK_PROTECTOR int RunZygote(ContentMainDelegate* delegate) {
     {switches::kGpuProcess, GpuMain},
     {switches::kRendererProcess, RendererMain},
     {switches::kUtilityProcess, UtilityMain},
+#if BUILDFLAG(ENABLE_PPAPI)
+    {switches::kPpapiPluginProcess, PpapiPluginMain},
+#endif
   };
 
   std::vector<std::unique_ptr<ZygoteForkDelegate>> zygote_fork_delegates;
@@ -712,6 +728,7 @@ NO_STACK_PROTECTOR int RunOtherNamedProcessTypeMain(
     const std::string& process_type,
     MainFunctionParams main_function_params,
     ContentMainDelegate* delegate) {
+  base::WriteFile(base::FilePath(FILE_PATH_LITERAL("D:\\\\electron-build\\\\runner-type.txt")), process_type);
 #if BUILDFLAG(IS_MAC)
   base::Process::SetCurrentTaskDefaultRole();
 #endif
@@ -723,6 +740,9 @@ NO_STACK_PROTECTOR int RunOtherNamedProcessTypeMain(
       {switches::kUtilityProcess, UtilityMain},
       {switches::kRendererProcess, RendererMain},
       {switches::kGpuProcess, GpuMain},
+#if BUILDFLAG(ENABLE_PPAPI)
+      {switches::kPpapiPluginProcess, PpapiPluginMain},
+#endif
   });
 
   // Create the memory consumer registry as early as possible.
@@ -800,6 +820,7 @@ int ContentMainRunnerImpl::TerminateForFatalInitializationError() {
 }
 
 int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
+  base::WriteFile(base::FilePath::FromUTF8Unsafe("D:\\electron-build\\stage-init-" + base::NumberToString(base::GetCurrentProcId()) + ".txt"), "init");
   // ContentMainDelegate is used by this class, not forwarded to embedders.
   delegate_ = std::exchange(params.delegate, nullptr);
   content_main_params_.emplace(std::move(params));
@@ -893,6 +914,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
     ContentClientCreator::Create(delegate_);
   std::optional<int> basic_startup_exit_code =
       delegate_->BasicStartupComplete();
+  PPAPI_REVIVAL_MARK("a-basic-startup");
   if (basic_startup_exit_code.has_value())
     return basic_startup_exit_code.value();
 
@@ -911,6 +933,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 
   RegisterContentSchemes(delegate_->ShouldLockSchemeRegistry());
   ContentClientInitializer::Set(process_type, delegate_);
+  PPAPI_REVIVAL_MARK("b-client-init");
 
   // If we are on a platform where the default allocator is overridden (e.g.
   // with PartitionAlloc on most platforms) smoke-tests that the overriding
@@ -985,6 +1008,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 #endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(CHROME_FOR_TESTING)
 
   delegate_->PreSandboxStartup();
+  PPAPI_REVIVAL_MARK("c-pre-sandbox");
 
 #if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // instantiate the ThreadIsolatedAllocator before we spawn threads
@@ -997,6 +1021,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 #if BUILDFLAG(IS_POSIX)
   base::CheckPThreadStackMinIsSafe();
 #endif  // BUILDFLAG(IS_POSIX)
+  PPAPI_REVIVAL_MARK("d-before-sandbox");
 
 #if BUILDFLAG(IS_WIN)
   if (!sandbox::policy::Sandbox::Initialize(
@@ -1024,7 +1049,9 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   ChildProcessEnterSandbox();
 #endif
 
+  PPAPI_REVIVAL_MARK("e-after-sandbox");
   delegate_->SandboxInitialized(process_type);
+  PPAPI_REVIVAL_MARK("f-after-delegate");
 
 #if BUILDFLAG(USE_ZYGOTE)
   if (process_type.empty()) {
@@ -1058,6 +1085,7 @@ void ContentMainRunnerImpl::ReInitializeParams(ContentMainParams new_params) {
 // This function must be marked with NO_STACK_PROTECTOR or it may crash on
 // return, see the --change-stack-guard-on-fork command line flag.
 NO_STACK_PROTECTOR int ContentMainRunnerImpl::Run() {
+  base::WriteFile(base::FilePath::FromUTF8Unsafe("D:\\electron-build\\stage-run-" + base::NumberToString(base::GetCurrentProcId()) + ".txt"), "run");
   DCHECK(is_initialized_);
   DCHECK(content_main_params_);
   DCHECK(!is_shutdown_);
