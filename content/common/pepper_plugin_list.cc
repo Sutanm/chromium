@@ -37,6 +37,8 @@ bool IsAllowedFromCommandLine(const ContentPluginInfo& plugin) {
           "application/x-blink-deprecated-test-plugin",
           "application/x-blink-test-plugin",
           "application/x-ppapi-tests",
+          "application/x-shockwave-flash",
+          "application/futuresplash",
       });
 
   bool allowed = true;
@@ -74,6 +76,7 @@ void ComputePluginsFromCommandLine(std::vector<ContentPluginInfo>* plugins) {
   const std::string value =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kRegisterPepperPlugins);
+  LOG(ERROR) << "[ppdbg] register-pepper-plugins value=[" << value << "]";
   if (value.empty())
     return;
 
@@ -148,6 +151,7 @@ void ComputePluginsFromCommandLine(std::vector<ContentPluginInfo>* plugins) {
     // Command-line plugins get full permissions.
     plugin.permissions = ppapi::PERMISSION_ALL_BITS;
 
+    LOG(ERROR) << "[ppdbg] plugin path=" << plugin.path.value() << " allowed=" << IsAllowedFromCommandLine(plugin);
     if (IsAllowedFromCommandLine(plugin))
       plugins->push_back(plugin);
   }

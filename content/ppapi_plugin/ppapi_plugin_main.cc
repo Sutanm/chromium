@@ -67,6 +67,16 @@ void* g_target_services = nullptr;
 #endif
 
 namespace content {
+namespace {
+void PpapiTrace2(const char* msg) {
+  static FILE* f = fopen("D:\\electron-build\\ppapi-trace.log", "a");
+  if (f) {
+    fprintf(f, "%s\n", msg);
+    fflush(f);
+  }
+}
+}  // namespace
+
 
 // Main function for starting the PPAPI plugin process.
 int PpapiPluginMain(MainFunctionParams parameters) {
@@ -130,6 +140,7 @@ int PpapiPluginMain(MainFunctionParams parameters) {
   setenv("HOME", homedir.value().c_str(), 1);
 #endif
 
+  PpapiTrace2("main: enter");
   base::SingleThreadTaskExecutor main_thread_task_executor;
   base::PlatformThread::SetName("CrPPAPIMain");
   base::CurrentProcess::GetInstance().SetProcessType(
@@ -146,6 +157,7 @@ int PpapiPluginMain(MainFunctionParams parameters) {
       sandbox::policy::SandboxLinux::Options());
 #endif
 
+  PpapiTrace2("main: before ChildProcess");
   ChildProcess ppapi_process;
   base::RunLoop run_loop;
   ppapi_process.set_main_thread(
@@ -178,6 +190,7 @@ int PpapiPluginMain(MainFunctionParams parameters) {
       subpixel_rendering != gfx::FontRenderParams::SUBPIXEL_RENDERING_NONE);
 #endif
 
+  PpapiTrace2("main: run_loop");
   run_loop.Run();
 
 #if BUILDFLAG(IS_WIN)

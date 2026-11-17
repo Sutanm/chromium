@@ -59,6 +59,10 @@
 #include "ppapi/c/private/ppb_host_resolver_private.h"
 #include "ppapi/c/private/ppb_isolated_file_system_private.h"
 #include "ppapi/c/private/ppb_net_address_private.h"
+#include "ppapi/c/private/ppb_flash.h"
+#include "ppapi/c/private/ppp_flash_browser_operations.h"
+#include "ppapi/proxy/serialized_flash_menu.h"
+#include "ppapi/shared_impl/ppp_flash_browser_operations_shared.h"
 #include "ppapi/proxy/host_resolver_private_resource.h"
 #include "ppapi/proxy/network_list_resource.h"
 #include "ppapi/proxy/ppapi_param_traits.h"
@@ -96,6 +100,13 @@ IPC_ENUM_TRAITS_MAX_VALUE(PP_AudioSampleRate, PP_AUDIOSAMPLERATE_LAST)
 IPC_ENUM_TRAITS_MAX_VALUE(PP_DeviceType_Dev, PP_DEVICETYPE_DEV_MAX)
 IPC_ENUM_TRAITS_MAX_VALUE(PP_FileSystemType, PP_FILESYSTEMTYPE_ISOLATED)
 IPC_ENUM_TRAITS_MAX_VALUE(PP_FileType, PP_FILETYPE_OTHER)
+IPC_ENUM_TRAITS_MAX_VALUE(PP_Flash_BrowserOperations_Permission,
+                          PP_FLASH_BROWSEROPERATIONS_PERMISSION_LAST)
+IPC_ENUM_TRAITS_MAX_VALUE(PP_Flash_BrowserOperations_SettingType,
+                          PP_FLASH_BROWSEROPERATIONS_SETTINGTYPE_LAST)
+IPC_ENUM_TRAITS_MIN_MAX_VALUE(PP_FlashSetting,
+                              PP_FLASHSETTING_FIRST,
+                              PP_FLASHSETTING_LAST)
 IPC_ENUM_TRAITS_MAX_VALUE(PP_ImageDataFormat, PP_IMAGEDATAFORMAT_LAST)
 IPC_ENUM_TRAITS_MIN_MAX_VALUE(PP_InputEvent_MouseButton,
                               PP_INPUTEVENT_MOUSEBUTTON_FIRST,
@@ -139,6 +150,10 @@ IPC_STRUCT_TRAITS_BEGIN(PP_FloatPoint)
   IPC_STRUCT_TRAITS_MEMBER(y)
 IPC_STRUCT_TRAITS_END()
 
+IPC_STRUCT_TRAITS_BEGIN(ppapi::FlashSiteSetting)
+  IPC_STRUCT_TRAITS_MEMBER(site)
+  IPC_STRUCT_TRAITS_MEMBER(permission)
+IPC_STRUCT_TRAITS_END()
 IPC_STRUCT_TRAITS_BEGIN(PP_Size)
   IPC_STRUCT_TRAITS_MEMBER(height)
   IPC_STRUCT_TRAITS_MEMBER(width)
@@ -1827,6 +1842,184 @@ IPC_MESSAGE_CONTROL1(PpapiPluginMsg_VideoCapture_OnError,
                      uint32_t /* error */)
 IPC_MESSAGE_CONTROL1(PpapiPluginMsg_VideoCapture_OnBufferReady,
                      uint32_t /* buffer */)
+
+
+// Flash -----------------------------------------------------------------------
+
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_Flash_Create)
+
+// Message to notify the browser to register an update in system activity.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_Flash_UpdateActivity)
+
+// Query the browser for the proxy server to use for the given URL.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_Flash_GetProxyForURL, std::string /* url */)
+// Reply message for GetProxyForURL containing the proxy server.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_Flash_GetProxyForURLReply,
+                     std::string /* proxy */)
+
+// Queries the browser for the local time zone offset for a given time.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_Flash_GetLocalTimeZoneOffset,
+                     base::Time /* time */)
+// Reply to GetLocalTimeZoneOffset containing the time zone offset as a double.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_Flash_GetLocalTimeZoneOffsetReply,
+                     double /* offset */)
+
+// Query the browser for the restrictions on storing Flash LSOs.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_Flash_GetLocalDataRestrictions)
+// Reply message for GetLocalDataRestrictions containing the restrictions to
+// use. These are PP_FlashLSORestrictions cast to an int32_t.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_Flash_GetLocalDataRestrictionsReply,
+                     int32_t /* restrictions */)
+
+// Notifies the renderer whether the Flash instance is in windowed mode. No
+// reply is sent.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_Flash_SetInstanceAlwaysOnTop,
+                     bool /* on_top */)
+
+// Notifies the renderer to draw text to the given PP_ImageData resource. All
+// parmeters for drawing (including the resource to draw to) are contianed in
+// the PPBFlash_DrawGlyphs_Params structure. An error code is sent in a reply
+// message indicating success.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_Flash_DrawGlyphs,
+                     ppapi::proxy::PPBFlash_DrawGlyphs_Params /* params */)
+
+// Notifies the renderer to navigate to the given URL contained in the
+// URLRequestInfoData. An error code is sent in a reply message indicating
+// success.
+IPC_MESSAGE_CONTROL3(PpapiHostMsg_Flash_Navigate,
+                     ppapi::URLRequestInfoData /* data */,
+                     std::string /* target */,
+                     bool /* from_user_action */)
+
+// Queries the renderer on whether the plugin instance is the topmost element
+// in the area of the instance specified by the given PP_Rect. PP_OK is sent as
+// the error code in a reply message if the rect is topmost otherwise
+// PP_ERROR_FAILED is sent.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_Flash_IsRectTopmost,
+                     PP_Rect /* rect */)
+
+// Notifies the renderer to invoke printing for the given plugin instance. No
+// reply is sent.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_Flash_InvokePrinting)
+
+
+// Flash clipboard.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashClipboard_Create)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashClipboard_RegisterCustomFormat,
+                     std::string /* format_name */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashClipboard_RegisterCustomFormatReply,
+                     uint32_t /* format */)
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashClipboard_IsFormatAvailable,
+                     uint32_t /* clipboard_type */,
+                     uint32_t /* format */)
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashClipboard_ReadData,
+                     uint32_t /* clipboard_type */,
+                     uint32_t /* format */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashClipboard_ReadDataReply,
+                     std::string /* result */)
+IPC_MESSAGE_CONTROL3(PpapiHostMsg_FlashClipboard_WriteData,
+                     uint32_t /* clipboard_type */,
+                     std::vector<uint32_t> /* formats */,
+                     std::vector<std::string> /* data */)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashClipboard_GetSequenceNumber,
+                     uint32_t /* clipboard_type */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashClipboard_GetSequenceNumberReply,
+                     uint64_t /* sequence_number */)
+
+// Flash DRM.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashDRM_Create)
+
+// Requests the device ID.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashDRM_GetDeviceID)
+// Reply for GetDeviceID which includes the device ID as a string.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashDRM_GetDeviceIDReply,
+                     std::string /* id */)
+
+// Requests the HMONITOR corresponding to the monitor on which the instance is
+// displayed.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashDRM_GetHmonitor)
+// Reply message for GetHmonitor which contains the HMONITOR as an int64_t.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashDRM_GetHmonitorReply,
+                     int64_t /* hmonitor */)
+
+// Requests the voucher file which is used to verify the integrity of the Flash
+// module. A PPB_FileRef resource will be created.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashDRM_GetVoucherFile)
+// Reply message for GetVoucherFile which contains the CreateInfo for a
+// PPB_FileRef which points to the voucher file.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashDRM_GetVoucherFileReply,
+                     ppapi::FileRefCreateInfo /* file_info */)
+
+// Requests a value indicating whether the monitor on which the instance is
+// displayed is external.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashDRM_MonitorIsExternal)
+// Reply message for MonitorIsExternal which contains the value indicating if
+// the monitor is external.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashDRM_MonitorIsExternalReply,
+                     PP_Bool /* is_external */)
+
+// Flash file.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashFile_Create)
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashFile_OpenFile,
+                     ppapi::PepperFilePath /* path */,
+                     int /* pp_open_flags */)
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashFile_RenameFile,
+                     ppapi::PepperFilePath /* from_path */,
+                     ppapi::PepperFilePath /* to_path */)
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashFile_DeleteFileOrDir,
+                     ppapi::PepperFilePath /* path */,
+                     bool /* recursive */)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashFile_CreateDir,
+                     ppapi::PepperFilePath /* path */)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashFile_QueryFile,
+                     ppapi::PepperFilePath /* path */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashFile_QueryFileReply,
+                     base::File::Info /* file_info */)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashFile_GetDirContents,
+                     ppapi::PepperFilePath /* path */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashFile_GetDirContentsReply,
+                     ppapi::DirContents /* entries */)
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashFile_CreateTemporaryFile)
+
+// Flash font file.
+IPC_MESSAGE_CONTROL2(PpapiHostMsg_FlashFontFile_Create,
+                     ppapi::proxy::SerializedFontDescription /* description */,
+                     PP_PrivateFontCharset /* charset */)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashFontFile_GetFontTable,
+                     uint32_t /* table */)
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashFontFile_GetFontTableReply,
+                     std::string /* output */)
+
+// Flash fullscreen.
+IPC_MESSAGE_CONTROL0(PpapiHostMsg_FlashFullscreen_Create)
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashFullscreen_SetFullscreen,
+                     bool /* fullscreen */)
+
+// FlashMenu.
+
+// Creates the flash menu with the given data.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashMenu_Create,
+                     ppapi::proxy::SerializedFlashMenu /* menu_data */)
+
+// Shows the menu at the given location relative to the plugin instance.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_FlashMenu_Show,
+                     PP_Point /* location */)
+
+// Reply to a show command. If the resource reply is PP_OK, the selected_id
+// will be the menu item ID chosen by the user.
+IPC_MESSAGE_CONTROL1(PpapiPluginMsg_FlashMenu_ShowReply,
+                     int32_t /* selected_id */)
+
+// PPB_Flash_MessageLoop.
+IPC_SYNC_MESSAGE_ROUTED1_1(PpapiHostMsg_PPBFlashMessageLoop_Create,
+                           PP_Instance /* instance */,
+                           ppapi::HostResource /* result */)
+IPC_SYNC_MESSAGE_ROUTED1_1(PpapiHostMsg_PPBFlashMessageLoop_Run,
+                           ppapi::HostResource /* flash_message_loop */,
+                           int32_t /* result */)
+IPC_SYNC_MESSAGE_ROUTED1_0(PpapiHostMsg_PPBFlashMessageLoop_Quit,
+                           ppapi::HostResource /* flash_message_loop */)
+
 
 #endif  // !BUILDFLAG(IS_NACL)
 

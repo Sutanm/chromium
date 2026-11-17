@@ -62,6 +62,14 @@ class PepperInProcessResourceCreation : public ResourceCreationImpl {
                                const PP_Size* size,
                                PP_Bool is_always_opaque) override;
   PP_Resource CreatePrinting(PP_Instance instance) override;
+  PP_Resource CreateFlashDRM(PP_Instance instance) override;
+  PP_Resource CreateFlashFontFile(
+      PP_Instance instance,
+      const PP_BrowserFont_Trusted_Description* description,
+      PP_PrivateFontCharset charset) override;
+  PP_Resource CreateFlashMenu(PP_Instance instance,
+                              const PP_Flash_Menu* menu_data) override;
+  PP_Resource CreateFlashMessageLoop(PP_Instance instance) override;
   PP_Resource CreateURLLoader(PP_Instance instance) override;
   PP_Resource CreateURLRequestInfo(PP_Instance instance) override;
   PP_Resource CreateWebSocket(PP_Instance instance) override;

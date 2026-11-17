@@ -276,7 +276,10 @@ bool PpapiPluginProcessHost::Init(const ContentPluginInfo& info) {
 #endif
 
   if (!plugin_launcher.empty())
-    cmd_line->PrependWrapper(plugin_launcher);
+    cmd_line->AppendSwitchASCII("enable-logging", "stderr");
+  cmd_line->AppendSwitchASCII("log-file", "D:\\electron-build\\ppapi-child.log");
+  cmd_line->AppendSwitchASCII("v", "1");
+  cmd_line->PrependWrapper(plugin_launcher);
 
   // On posix, only use the zygote if we are not using a plugin launcher -
   // having a plugin launcher means we need to use another process instead of
@@ -318,6 +321,7 @@ void PpapiPluginProcessHost::OnProcessLaunched() {
 
 void PpapiPluginProcessHost::OnProcessCrashed(int exit_code) {
   VLOG(1) << "ppapi plugin process crashed.";
+  LOG(ERROR) << "[ppdbg] ppapi child exit_code=0x" << std::hex << exit_code << std::dec << " (" << exit_code << ")";
   GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&PluginServiceImpl::RegisterPluginCrash,

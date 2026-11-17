@@ -19,7 +19,7 @@ declare_args() {
   # Enables Pepper API (PPAPI) plugin support.
   # The only remaining PPAPI plugin supported is NaCl and if is disabled
   # we can disable PPAPI.
-  enable_ppapi = enable_plugins && enable_nacl && !is_fuchsia
+  enable_ppapi = enable_plugins && !is_fuchsia
 }
 
 assert(enable_plugins || !enable_ppapi)

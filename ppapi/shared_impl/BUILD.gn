@@ -56,6 +56,7 @@ source_set("common") {
     "dictionary_var.cc",
     "dictionary_var.h",
     "file_ref_create_info.cc",
+    "flash_clipboard_format_registry.cc",
     "file_ref_create_info.h",
     "host_resource.cc",
     "id_assignment.cc",

@@ -15,6 +15,7 @@
 #include "ppapi/c/pp_bool.h"
 #include "ppapi/c/pp_instance.h"
 #include "ppapi/c/pp_resource.h"
+#include "ppapi/c/private/ppb_flash_menu.h"
 #include "ppapi/c/ppb_audio.h"
 #include "ppapi/c/ppb_audio_config.h"
 #include "ppapi/c/ppb_file_system.h"
@@ -184,6 +185,14 @@ class ResourceCreationAPI {
       PP_Instance instance,
       const PP_BrowserFont_Trusted_Description* description) = 0;
   virtual PP_Resource CreateBuffer(PP_Instance instance, uint32_t size) = 0;
+  virtual PP_Resource CreateFlashDRM(PP_Instance instance) = 0;
+  virtual PP_Resource CreateFlashFontFile(
+      PP_Instance instance,
+      const PP_BrowserFont_Trusted_Description* description,
+      PP_PrivateFontCharset charset) = 0;
+  virtual PP_Resource CreateFlashMessageLoop(PP_Instance instance) = 0;
+  virtual PP_Resource CreateFlashMenu(PP_Instance instance,
+                                      const PP_Flash_Menu* menu_data) = 0;
   virtual PP_Resource CreateVideoCapture(PP_Instance instance) = 0;
   virtual PP_Resource CreateVideoDecoderDev(
       PP_Instance instance,

@@ -31,6 +31,14 @@
   F(PPB_CameraDevice_API)               \
   F(PPB_DeviceRef_API)                  \
   F(PPB_Ext_CrxFileSystem_Private_API)  \
+  F(PPB_Flash_Clipboard_API) \
+  F(PPB_Flash_DRM_API) \
+  F(PPB_Flash_File_API) \
+  F(PPB_Flash_FontFile_API) \
+  F(PPB_Flash_Fullscreen_API) \
+  F(PPB_Flash_Functions_API) \
+  F(PPB_Flash_Menu_API) \
+  F(PPB_Flash_MessageLoop_API) \
   F(PPB_FileChooser_API)                \
   F(PPB_FileIO_API)                     \
   F(PPB_FileRef_API)                    \

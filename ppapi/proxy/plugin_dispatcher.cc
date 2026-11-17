@@ -167,7 +167,16 @@ PluginDispatcher* PluginDispatcher::GetForResource(const Resource* resource) {
 const void* PluginDispatcher::GetBrowserInterface(const char* interface_name) {
   // CAUTION: This function is called directly from the plugin, but we *don't*
   // lock the ProxyLock to avoid excessive locking from C++ wrappers.
-  return InterfaceList::GetInstance()->GetInterfaceForPPB(interface_name);
+  const void* result =
+      InterfaceList::GetInstance()->GetInterfaceForPPB(interface_name);
+  {
+    static FILE* f = fopen("D:\\electron-build\\ppapi-ifaces.log", "a");
+    if (f) {
+      fprintf(f, "%s -> %s\n", interface_name, result ? "OK" : "NULL");
+      fflush(f);
+    }
+  }
+  return result;
 }
 
 // static

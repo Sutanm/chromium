@@ -11,6 +11,10 @@
 #include "ppapi/proxy/audio_output_resource.h"
 #include "ppapi/proxy/camera_device_resource.h"
 #include "ppapi/proxy/connection.h"
+#include "ppapi/proxy/flash_drm_resource.h"
+#include "ppapi/proxy/flash_font_file_resource.h"
+#include "ppapi/proxy/flash_menu_resource.h"
+#include "ppapi/proxy/ppb_flash_message_loop_proxy.h"
 #include "ppapi/proxy/file_chooser_resource.h"
 #include "ppapi/proxy/file_io_resource.h"
 #include "ppapi/proxy/file_ref_resource.h"
@@ -400,6 +404,33 @@ PP_Resource ResourceCreationProxy::CreateBrowserFont(
       GetConnection(), instance, *description, dispatcher->preferences());
 }
 
+PP_Resource ResourceCreationProxy::CreateFlashDRM(PP_Instance instance) {
+  return (new FlashDRMResource(GetConnection(), instance))->GetReference();
+}
+
+PP_Resource ResourceCreationProxy::CreateFlashFontFile(
+    PP_Instance instance,
+    const PP_BrowserFont_Trusted_Description* description,
+    PP_PrivateFontCharset charset) {
+  return (new FlashFontFileResource(GetConnection(), instance, description,
+                                    charset))
+      ->GetReference();
+}
+
+PP_Resource ResourceCreationProxy::CreateFlashMessageLoop(
+    PP_Instance instance) {
+  return PPB_Flash_MessageLoop_Proxy::CreateProxyResource(instance);
+}
+
+PP_Resource ResourceCreationProxy::CreateFlashMenu(
+    PP_Instance instance,
+    const PP_Flash_Menu* menu_data) {
+  scoped_refptr<FlashMenuResource> flash_menu(
+      new FlashMenuResource(GetConnection(), instance));
+  if (!flash_menu->Initialize(menu_data))
+    return 0;
+  return flash_menu->GetReference();
+}
 PP_Resource ResourceCreationProxy::CreateBuffer(PP_Instance instance,
                                                 uint32_t size) {
   return PPB_Buffer_Proxy::CreateProxyResource(instance, size);

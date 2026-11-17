@@ -118,6 +118,16 @@
 #include "ppapi/proxy/ppp_printing_proxy.h"
 #include "ppapi/proxy/ppp_text_input_proxy.h"
 #include "ppapi/proxy/ppp_video_decoder_proxy.h"
+#include "ppapi/c/private/ppb_flash.h"
+#include "ppapi/c/private/ppb_flash_clipboard.h"
+#include "ppapi/c/private/ppb_flash_drm.h"
+#include "ppapi/c/private/ppb_flash_file.h"
+#include "ppapi/c/private/ppb_flash_font_file.h"
+#include "ppapi/c/private/ppb_flash_fullscreen.h"
+#include "ppapi/c/private/ppb_flash_menu.h"
+#include "ppapi/c/private/ppb_flash_message_loop.h"
+#include "ppapi/c/private/ppb_flash_print.h"
+#include "ppapi/proxy/ppb_flash_message_loop_proxy.h"
 #include "ppapi/proxy/resource_creation_proxy.h"
 #include "ppapi/shared_impl/ppb_opengles2_shared.h"
 #include "ppapi/shared_impl/ppb_var_shared.h"
@@ -192,7 +202,12 @@ InterfaceList::InterfaceList() {
     Permission current_required_permission = PERMISSION_SOCKET;
     #include "ppapi/thunk/interfaces_ppb_public_socket.h"
   }
-  // clang-format on
+#if !BUILDFLAG(IS_NACL)
+  {
+    Permission current_required_permission = PERMISSION_FLASH;
+    #include "ppapi/thunk/interfaces_ppb_private_flash.h"
+  }
+#endif  // !BUILDFLAG(IS_NACL)  // clang-format on
 
 #undef PROXIED_API
 #undef PROXIED_IFACE

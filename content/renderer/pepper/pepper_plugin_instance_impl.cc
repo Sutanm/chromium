@@ -2122,6 +2122,10 @@ ppapi::Resource* PepperPluginInstanceImpl::GetSingletonResource(
   // Some APIs aren't implemented in-process.
   switch (id) {
     case ppapi::BROWSER_FONT_SINGLETON_ID:
+    case ppapi::FLASH_CLIPBOARD_SINGLETON_ID:
+    case ppapi::FLASH_FILE_SINGLETON_ID:
+    case ppapi::FLASH_FULLSCREEN_SINGLETON_ID:
+    case ppapi::FLASH_SINGLETON_ID:
     case ppapi::ISOLATED_FILESYSTEM_SINGLETON_ID:
     case ppapi::NETWORK_PROXY_SINGLETON_ID:
       NOTIMPLEMENTED();

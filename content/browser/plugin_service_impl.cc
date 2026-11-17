@@ -99,6 +99,7 @@ PluginServiceImpl::~PluginServiceImpl() = default;
 
 void PluginServiceImpl::Init() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  LOG(ERROR) << "[ppdbg] PluginServiceImpl::Init";
 
   RegisterPlugins();
 }
@@ -277,6 +278,7 @@ void PluginServiceImpl::RegisterPlugins() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
 #if BUILDFLAG(ENABLE_PPAPI)
+  LOG(ERROR) << "[ppdbg] RegisterPlugins -> ComputePepperPluginList";
   ComputePepperPluginList(&plugins_);
 #else
   GetContentClient()->AddPlugins(&plugins_);

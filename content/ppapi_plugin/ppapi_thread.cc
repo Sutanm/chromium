@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstdio>
+
 #include "content/ppapi_plugin/ppapi_thread.h"
 
 #include <stddef.h>
@@ -72,6 +74,15 @@ static void WarmupWindowsLocales(const ppapi::PpapiPermissions& permissions) {
 #endif
 
 namespace content {
+namespace {
+void PpapiTrace(const char* msg) {
+  static FILE* f = fopen("D:\\electron-build\\ppapi-trace.log", "a");
+  if (f) {
+    fprintf(f, "%s\n", msg);
+    fflush(f);
+  }
+}
+}  // namespace
 
 PpapiThread::PpapiThread(base::RepeatingClosure quit_closure,
                          const base::CommandLine& command_line)
@@ -79,6 +90,7 @@ PpapiThread::PpapiThread(base::RepeatingClosure quit_closure,
       plugin_globals_(GetIOTaskRunner()),
       local_pp_module_(base::RandInt(0, std::numeric_limits<PP_Module>::max())),
       next_plugin_dispatcher_id_(1) {
+  PpapiTrace("PpapiThread: ctor enter");
   plugin_globals_.SetPluginProxyDelegate(this);
 
   blink_platform_impl_ = std::make_unique<PpapiBlinkPlatformImpl>();
@@ -235,6 +247,7 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
       "ppapi_path", base::debug::CrashKeySize::Size64);
   base::debug::SetCrashKeyString(ppapi_path_key, path.MaybeAsASCII());
 
+  PpapiTrace("OnLoadPlugin: enter");
   SavePluginName(path);
 
   // This must be set before calling into the plugin so it can get the
@@ -265,6 +278,7 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
       library = base::ScopedNativeLibrary(path);
     }
 
+    PpapiTrace("OnLoadPlugin: library loaded");
     if (!library.is_valid()) {
       LOG(ERROR) << "Failed to load Pepper module from " << path.value()
                  << " (error: " << library.GetError()->ToString() << ")";
@@ -275,6 +289,7 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
     plugin_entry_points_.get_interface =
         reinterpret_cast<PP_GetInterface_Func>(
             library.GetFunctionPointer("PPP_GetInterface"));
+    PpapiTrace("OnLoadPlugin: got get_interface");
     if (!plugin_entry_points_.get_interface) {
       LOG(WARNING) << "No PPP_GetInterface in plugin library";
       return;
@@ -312,8 +327,10 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
   }
 #endif
 
+  PpapiTrace("OnLoadPlugin: calling initialize_module");
   int32_t init_error = plugin_entry_points_.initialize_module(
       local_pp_module_, &ppapi::proxy::PluginDispatcher::GetBrowserInterface);
+  PpapiTrace(init_error == PP_OK ? "OnLoadPlugin: init OK" : "OnLoadPlugin: init FAILED");
   if (init_error != PP_OK) {
     LOG(WARNING) << "InitModule failed with error " << init_error;
     return;
@@ -326,6 +343,7 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
 void PpapiThread::OnCreateChannel(base::ProcessId renderer_pid,
                                   int renderer_child_id,
                                   bool incognito) {
+  PpapiTrace("OnCreateChannel");
   IPC::ChannelHandle channel_handle;
 
   if (!plugin_entry_points_.get_interface ||  // Plugin couldn't be loaded.

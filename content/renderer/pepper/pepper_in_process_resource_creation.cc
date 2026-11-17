@@ -83,6 +83,31 @@ PP_Resource PepperInProcessResourceCreation::CreateFileChooser(
               str.c_str()))->GetReference();
 }
 
+// static
+PP_Resource PepperInProcessResourceCreation::CreateFlashDRM(
+    PP_Instance instance) {
+  // Flash private interfaces are only supported out-of-process.
+  return 0;
+}
+
+PP_Resource PepperInProcessResourceCreation::CreateFlashFontFile(
+    PP_Instance instance,
+    const PP_BrowserFont_Trusted_Description* description,
+    PP_PrivateFontCharset charset) {
+  return 0;
+}
+
+PP_Resource PepperInProcessResourceCreation::CreateFlashMenu(
+    PP_Instance instance,
+    const PP_Flash_Menu* menu_data) {
+  return 0;
+}
+
+PP_Resource PepperInProcessResourceCreation::CreateFlashMessageLoop(
+    PP_Instance instance) {
+  return 0;
+}
+
 PP_Resource PepperInProcessResourceCreation::CreateFileIO(
     PP_Instance instance) {
   return (new ppapi::proxy::FileIOResource(
