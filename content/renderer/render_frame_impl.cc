@@ -1916,6 +1916,11 @@ RenderFrameImpl::RenderFrameImpl(CreateParams params)
       unique_name_helper_(&unique_name_frame_adapter_),
       in_frame_tree_(false),
       frame_token_(params.frame_token),
+      // 【移植】140 删掉 PPAPI 时把 pepper_routing_id_ 的赋值一起删了，默认 -1 会让
+      // RenderFrame::GetRoutingID() 返回 -1 —— 插件进程拿到的 render_frame_id 也就是 -1，
+      // 于是 RenderFrameHost::FromID(pid, -1) 为 null，Flash 的 Socket 连接永远失败
+      // （ppapi PepperTCPSocketMessageFilter::OnMsgConnect 直接返回 PP_ERROR_FAILED）。
+      pepper_routing_id_(params.routing_id),
       process_label_id_(
           tracing::TrackNameRecorder::GetInstance()->GetNewProcessLabelId()),
       selection_text_offset_(0),
