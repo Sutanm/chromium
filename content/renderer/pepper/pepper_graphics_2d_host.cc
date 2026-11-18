@@ -27,6 +27,7 @@
 #include "content/public/renderer/renderer_ppapi_host.h"
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
 #include "content/renderer/pepper/ppb_image_data_impl.h"
+#include "content/renderer/render_frame_impl.h"
 #include "content/renderer/render_thread_impl.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
@@ -48,6 +49,7 @@
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #include "skia/ext/platform_canvas.h"
 #include "third_party/blink/public/common/switches.h"
+#include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/khronos/GLES2/gl2.h"
 #include "third_party/khronos/GLES2/gl2ext.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -72,6 +74,11 @@ namespace content {
 namespace {
 
 const int64_t kOffscreenCallbackDelayMs = 1000 / 30;  // 30 fps
+
+// 方案 A：等待"帧被 display compositor 呈现"的兜底时长。
+// 取 250ms（约 4 帧 @60Hz）：覆盖正常呈现延迟，又不至于在隐藏标签页 / 零尺寸 /
+// 无合成器等不产生帧的场景把 Flash 卡住过久。
+const int64_t kFlushAckPresentationTimeoutMs = 250;
 
 // Converts a rect inside an image of the given dimensions. The rect may be
 // NULL to indicate it should be the entire image. If the rect is outside of
@@ -209,6 +216,7 @@ PepperGraphics2DHost::PepperGraphics2DHost(RendererPpapiHost* host,
       renderer_ppapi_host_(host),
       bound_instance_(nullptr),
       need_flush_ack_(false),
+      flush_ack_owed_(false),
       offscreen_flush_pending_(false),
       is_always_opaque_(false),
       scale_(1.0f),
@@ -251,21 +259,6 @@ bool PepperGraphics2DHost::Init(
   }
   is_always_opaque_ = is_always_opaque;
   scale_ = 1.0f;
-
-  // 【临时探针】记录初始 buffer 身份，并填入可识别的绿色（0xFF00FF00）。
-  LOG(ERROR) << "[ppdbg] Init ptr=" << static_cast<const void*>(image_data_.get())
-             << " " << width << "x" << height;
-  {
-    void* base = image_data_->Map();
-    if (base) {
-      uint32_t* px = static_cast<uint32_t*>(base);
-      const size_t n = static_cast<size_t>(width) * height;
-      for (size_t i = 0; i < n; ++i)
-        UNSAFE_BUFFERS(px[i]) = 0xFF00FF00u;
-      LOG(ERROR) << "[ppdbg] Init prefilled green n=" << n;
-      image_data_->Unmap();
-    }
-  }
 
   return true;
 }
@@ -534,33 +527,6 @@ int32_t PepperGraphics2DHost::OnHostMsgReplaceContents(
       image_resource->height() != image_data_->height())
     return PP_ERROR_BADARGUMENT;
 
-  // 【临时探针】在 swap 之前检查 Flash 交上来的这块 buffer 的真实内容。
-  LOG(ERROR) << "[ppdbg] RC passed="
-             << static_cast<const void*>(image_resource)
-             << " cur=" << static_cast<const void*>(image_data_.get());
-  {
-    void* base = image_resource->Map();
-    if (base) {
-      const uint32_t* px = static_cast<const uint32_t*>(base);
-      const int w = image_resource->width();
-      const int h = image_resource->height();
-      const size_t n = static_cast<size_t>(w) * h;
-      size_t nonwhite = 0, nonzero = 0;
-      for (size_t i = 0; i < n; ++i) {
-        const uint32_t v = UNSAFE_BUFFERS(px[i]);
-        if (v != 0xFFFFFFFFu)
-          ++nonwhite;
-        if (v != 0u)
-          ++nonzero;
-      }
-      const size_t mid = static_cast<size_t>(h / 2) * w + w / 2;
-      LOG(ERROR) << "[ppdbg] RC px(mid)=" << UNSAFE_BUFFERS(px[mid])
-                 << " px(300,200)=" << UNSAFE_BUFFERS(px[static_cast<size_t>(200) * w + 300])
-                 << " nonwhite=" << nonwhite << " nonzero=" << nonzero
-                 << " n=" << n;
-    }
-  }
-
   QueuedOperation operation(QueuedOperation::REPLACE);
   operation.replace_image = image_resource;
   queued_operations_.push_back(operation);
@@ -790,12 +756,8 @@ bool PepperGraphics2DHost::PrepareTransferableResource(
           viz::TransferableResource::ResourceSource::kPepperGraphics2D,
           std::move(out_sync_token));
     composited_output_modified_ = false;
-    // 【临时实验】把 FlushAck 提前到"资源交给合成器"时发送，验证 Flash 是否在等 ack
-    if (need_flush_ack_) {
-      LOG(ERROR) << "[ppdbg] Prepare sends FlushAck";
-      SendFlushAck();
-      need_flush_ack_ = false;
-    }
+    // 方案 A：把这一次 Flush 的 ack 延后到"帧真正呈现到屏幕之后"再发。
+    RequestFlushAckAfterPresentation();
     return true;
   }
 
@@ -851,12 +813,8 @@ bool PepperGraphics2DHost::PrepareTransferableResource(
 
   composited_output_modified_ = false;
 
-    // 【临时实验】把 FlushAck 提前到"资源交给合成器"时发送，验证 Flash 是否在等 ack
-    if (need_flush_ack_) {
-      LOG(ERROR) << "[ppdbg] Prepare sends FlushAck";
-      SendFlushAck();
-      need_flush_ack_ = false;
-    }
+  // 方案 A：把这一次 Flush 的 ack 延后到"帧真正呈现到屏幕之后"再发。
+  RequestFlushAckAfterPresentation();
   return true;
 }
 
@@ -948,32 +906,7 @@ int32_t PepperGraphics2DHost::Flush(PP_Resource* old_image_data) {
     ScheduleOffscreenFlushAck();
   } else {
     need_flush_ack_ = true;
-  }
-
-  // 【临时探针】Flush 结束时记录当前（即将上屏）buffer 的身份与内容。
-  {
-    LOG(ERROR) << "[ppdbg] Flush cur="
-               << static_cast<const void*>(image_data_.get());
-    void* base = image_data_->Map();
-    if (base) {
-      const uint32_t* px = static_cast<const uint32_t*>(base);
-      const int w = image_data_->width();
-      const int h = image_data_->height();
-      const size_t n = static_cast<size_t>(w) * h;
-      size_t nonwhite = 0, green = 0;
-      for (size_t i = 0; i < n; ++i) {
-        const uint32_t v = UNSAFE_BUFFERS(px[i]);
-        if (v != 0xFFFFFFFFu)
-          ++nonwhite;
-        if (v == 0xFF00FF00u)
-          ++green;
-      }
-      LOG(ERROR) << "[ppdbg] Flush px(300,200)="
-                 << UNSAFE_BUFFERS(px[static_cast<size_t>(200) * w + 300])
-                 << " nonwhite=" << nonwhite << " green=" << green
-                 << " n=" << n;
-      image_data_->Unmap();
-    }
+    flush_ack_owed_ = true;
   }
 
   return PP_OK_COMPLETIONPENDING;
@@ -1062,8 +995,49 @@ void PepperGraphics2DHost::ExecuteReplaceContents(PPB_ImageData_Impl* image,
 }
 
 void PepperGraphics2DHost::SendFlushAck() {
-  LOG(ERROR) << "[ppdbg] SendFlushAck";
+  if (!flush_ack_owed_)
+    return;  // 已经 ack 过（呈现回调与兜底定时器可能都触发）
+  flush_ack_owed_ = false;
+  if (flush_ack_fallback_timer_.IsRunning())
+    flush_ack_fallback_timer_.Stop();
   host()->SendReply(flush_reply_context_, PpapiPluginMsg_Graphics2D_FlushAck());
+}
+
+void PepperGraphics2DHost::OnFlushAckPresentationTimeout() {
+  // 兜底：合成器迟迟没有给出"呈现完成"（隐藏标签页 / 零尺寸 / 无 widget），
+  // 仍然要让 Flash 继续画，否则它会永久停在等 ack 的状态。
+  SendFlushAck();
+}
+
+void PepperGraphics2DHost::RequestFlushAckAfterPresentation() {
+  if (!need_flush_ack_)
+    return;
+
+  // 从这里开始，这一次 Flush 的 ack 由本函数负责，不再由 need_flush_ack_ 驱动。
+  // flush_ack_owed_ 保证"呈现回调"与"兜底定时器"只有一个真正发 ack。
+  need_flush_ack_ = false;
+
+  // 兜底：不产生帧的场景必须在有限时间内 ack。
+  flush_ack_fallback_timer_.Start(
+      FROM_HERE, base::Milliseconds(kFlushAckPresentationTimeoutMs),
+      base::BindOnce(&PepperGraphics2DHost::OnFlushAckPresentationTimeout,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  blink::WebFrameWidget* widget = nullptr;
+  if (bound_instance_ && bound_instance_->render_frame())
+    widget = bound_instance_->render_frame()->GetLocalRootWebFrameWidget();
+
+  // InsertVisualStateRequest 的回调在"下一帧被 display compositor 呈现之后"
+  // 触发；返回 false 表示该 widget 没有合成器，回调不会被调用。
+  if (widget &&
+      widget->InsertVisualStateRequest(
+          base::BindOnce(&PepperGraphics2DHost::SendFlushAck,
+                         weak_ptr_factory_.GetWeakPtr()))) {
+    return;
+  }
+
+  // 没有合成器：按 API 约定立即 ack。
+  SendFlushAck();
 }
 
 void PepperGraphics2DHost::SendOffscreenFlushAck() {
@@ -1078,6 +1052,7 @@ void PepperGraphics2DHost::SendOffscreenFlushAck() {
 
 void PepperGraphics2DHost::ScheduleOffscreenFlushAck() {
   offscreen_flush_pending_ = true;
+  flush_ack_owed_ = true;
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&PepperGraphics2DHost::SendOffscreenFlushAck,
@@ -1086,7 +1061,8 @@ void PepperGraphics2DHost::ScheduleOffscreenFlushAck() {
 }
 
 bool PepperGraphics2DHost::HasPendingFlush() const {
-  return need_flush_ack_ || offscreen_flush_pending_;
+  // flush_ack_owed_ 也算"有待回包"：呈现回调还没触发时插件不应再发起新的 Flush。
+  return need_flush_ack_ || offscreen_flush_pending_ || flush_ack_owed_;
 }
 
 // static

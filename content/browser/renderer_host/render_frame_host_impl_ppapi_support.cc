@@ -152,6 +152,16 @@ void RenderFrameHostImplPpapiSupport::DidCreateOutOfProcessPepperInstance(
     const GURL& plugin_url,
     bool is_privileged_context,
     DidCreateOutOfProcessPepperInstanceCallback callback) {
+  // 让浏览器懒绑定 blink::mojom::WidgetCompositor。
+  // 绑定之前，渲染进程侧的 WebFrameWidget::InsertVisualStateRequest() 会一直
+  // 返回 false（WidgetBase::widget_compositor_ 为空）；绑定之后 Pepper 的
+  // Graphics2D 才能把 FlushAck 精确地放在"帧被 display compositor 呈现之后"。
+  // 这里触发一次即可，之后复用同一条 pipe。
+  if (auto* render_widget_host = render_frame_host_->GetRenderWidgetHost()) {
+    render_widget_host->InsertVisualStateCallback(
+        base::BindOnce([](bool /* presented */) {}));
+  }
+
   GetProcess()
       ->pepper_renderer_connection()
       ->DidCreateOutOfProcessPepperInstance(

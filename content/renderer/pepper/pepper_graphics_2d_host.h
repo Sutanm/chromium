@@ -11,6 +11,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "cc/paint/paint_canvas.h"
 #include "components/viz/common/resources/release_callback.h"
 #include "content/common/content_export.h"
@@ -155,6 +156,14 @@ class CONTENT_EXPORT PepperGraphics2DHost final
 
   void SendFlushAck();
 
+  // 方案 A（呈现后 ack）：把当前这次 Flush 的 ack 延后到"帧真正被 display
+  // compositor 呈现之后"再发。合成器不可用时立即 ack；同时启动兜底定时器，
+  // 避免隐藏标签页 / 零尺寸等不产生帧的场景把 Flash 永久卡住。
+  void RequestFlushAckAfterPresentation();
+
+  // 兜底：呈现回调迟迟不来时强制 ack。
+  void OnFlushAckPresentationTimeout();
+
   // Function scheduled to execute by ScheduleOffscreenFlushAck that actually
   // issues the offscreen callbacks.
   void SendOffscreenFlushAck();
@@ -206,6 +215,13 @@ class CONTENT_EXPORT PepperGraphics2DHost final
 
   // True if we need to send an ACK to plugin.
   bool need_flush_ack_;
+
+  // 方案 A：是否还欠插件一个 FlushAck（无论走"呈现后回调"还是兜底定时器）。
+  // 用途：保证 呈现回调 与 兜底定时器 只会真正发一次 ack。
+  bool flush_ack_owed_;
+
+  // 兜底：呈现回调在 kFlushAckPresentationTimeoutMs 内没有触发时强制 ack。
+  base::OneShotTimer flush_ack_fallback_timer_;
 
   // When doing offscreen flushes, we issue a task that issues the callback
   // later. This is set when one of those tasks is pending so that we can
