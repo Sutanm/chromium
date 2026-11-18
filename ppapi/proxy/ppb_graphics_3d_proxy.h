@@ -71,6 +71,10 @@ class PPAPI_PROXY_EXPORT Graphics3D : public PPB_Graphics3D_Shared {
   void DoResize(gfx::Size size) override;
 
   std::unique_ptr<PpapiCommandBufferProxy> command_buffer_;
+
+  // PPAPI revival: swap id counter for the restored glSwapBuffers command
+  // (Chromium 87 had it; removed together with PPAPI swapchain support).
+  uint64_t swap_id_ = 0;
 };
 
 class PPB_Graphics3D_Proxy : public InterfaceProxy {

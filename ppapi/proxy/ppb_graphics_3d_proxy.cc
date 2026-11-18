@@ -136,6 +136,12 @@ int32_t Graphics3D::DoSwapBuffers(const gpu::SyncToken& sync_token,
 
   gpu::gles2::GLES2Implementation* gl = gles2_impl();
 
+  // PPAPI revival: Chromium 87 issued the real glSwapBuffers command here; the
+  // command was removed together with PPAPI/PNaCl swapchain support. Flash's
+  // Stage3D present() path relies on it, so it has been restored in gpu/ and is
+  // issued again before flushing.
+  gl->SwapBuffers(swap_id_++, 0);
+
   // Flush current GL commands.
   gl->ShallowFlushCHROMIUM();
 

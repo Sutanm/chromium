@@ -38,6 +38,20 @@ error::Error GLES2DecoderImpl::HandleAttachShader(
   return error::kNoError;
 }
 
+// PPAPI revival: restored from Chromium 87 (Flash Stage3D present path).
+// The validating decoder is not used by PPAPI 3D contexts in this build, so the
+// swap only has to be accepted without error.
+error::Error GLES2DecoderImpl::HandleSwapBuffers(uint32_t immediate_data_size,
+                                                const volatile void* cmd_data) {
+  const volatile gles2::cmds::SwapBuffers& c =
+      *static_cast<const volatile gles2::cmds::SwapBuffers*>(cmd_data);
+  if (!validators_->framebuffer_target.IsValid(0)) {
+    // no-op: SwapBuffers has no GLenum param to validate
+  }
+  (void)c;
+  return error::kNoError;
+}
+
 error::Error GLES2DecoderImpl::HandleBindBuffer(uint32_t immediate_data_size,
                                                 const volatile void* cmd_data) {
   const volatile gles2::cmds::BindBuffer& c =

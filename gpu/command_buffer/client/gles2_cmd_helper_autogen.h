@@ -3426,4 +3426,11 @@ void PolygonOffsetClampEXT(GLfloat factor, GLfloat units, GLfloat clamp) {
   }
 }
 
+void SwapBuffers(GLuint64 swap_id, GLbitfield flags) {
+  gles2::cmds::SwapBuffers* c = GetCmdSpace<gles2::cmds::SwapBuffers>();
+  if (c) {
+    c->Init(swap_id, flags);
+  }
+}
+
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_CMD_HELPER_AUTOGEN_H_
