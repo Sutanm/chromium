@@ -91,6 +91,11 @@ class PepperPluginInstance {
 
   virtual bool IsRectTopmost(const gfx::Rect& rect) = 0;
 
+  // Flash-specific fullscreen entry point (PPB_Flash_Fullscreen). Flash calls
+  // this instead of the standard PPB_Fullscreen API. Returns true if the
+  // request was accepted (or the instance is already in the target state).
+  virtual bool FlashSetFullscreen(bool fullscreen, bool delay_report) = 0;
+
   // Creates a pending PepperFileRefRendererHost. Returns 0 on failure.
   virtual int MakePendingFileRefRendererHost(const base::FilePath& path) = 0;
 

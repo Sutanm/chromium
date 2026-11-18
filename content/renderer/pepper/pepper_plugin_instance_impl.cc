@@ -1718,7 +1718,26 @@ bool PepperPluginInstanceImpl::IsFullscreenOrPending() {
   return desired_fullscreen_state_;
 }
 
+bool PepperPluginInstanceImpl::FlashSetFullscreen(bool fullscreen,
+                                                   bool delay_report) {
+  TRACE_EVENT0("ppapi", "PepperPluginInstanceImpl::FlashSetFullscreen");
+  LOG(ERROR) << "[ppexp] FlashSetFullscreen(" << fullscreen
+             << ", delay=" << delay_report << ")";
+  // Keep a reference on the stack. See NOTE above.
+  scoped_refptr<PepperPluginInstanceImpl> ref(this);
+
+  // Already in (or switching to) the requested state.
+  if (fullscreen == IsFullscreenOrPending())
+    return true;
+
+  // Flash's private fullscreen API funnels into the standard HTML5 fullscreen
+  // path: the plugin element gets fullscreened and Flash is told about the
+  // geometry change, which is what stage.displayState expects.
+  return SetFullscreen(fullscreen);
+}
+
 bool PepperPluginInstanceImpl::SetFullscreen(bool fullscreen) {
+  LOG(ERROR) << "[ppexp] SetFullscreen(" << fullscreen << ")";
   // Keep a reference on the stack. See NOTE above.
   scoped_refptr<PepperPluginInstanceImpl> ref(this);
 

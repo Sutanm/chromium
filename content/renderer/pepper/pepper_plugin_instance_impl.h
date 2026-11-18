@@ -301,6 +301,11 @@ class CONTENT_EXPORT PepperPluginInstanceImpl
   // mode).
   bool SetFullscreen(bool fullscreen);
 
+  // Flash-specific fullscreen entry point (PPB_Flash_Fullscreen). Flash calls
+  // this instead of the standard PPB_Fullscreen API. |delay_report| is honored
+  // by reporting the geometry asynchronously when leaving fullscreen.
+  bool FlashSetFullscreen(bool fullscreen, bool delay_report) override;
+
   // Send the message on to the plugin.
   void HandleMessage(ppapi::ScopedPPVar message);
 
