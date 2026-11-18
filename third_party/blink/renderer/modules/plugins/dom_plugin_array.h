@@ -57,8 +57,14 @@ class DOMPluginArray final : public ScriptWrappable {
  private:
   PluginData* GetPluginData() const;
 
+  // 【移植】Chromium 87 会枚举真实 PluginData（含 PPAPI Flash）；140 只保留
+  // 硬编码的 PDF 假列表（crbug.com/1164635 的反指纹措施）。这里恢复 87 的行为：
+  // 有真实插件就用真实的，没有才退回 PDF 假列表。
+  void EnsurePlugins() const;
+
   Member<LocalDOMWindow> window_;
-  HeapVector<Member<DOMPlugin>> dom_plugins_;
+  mutable HeapVector<Member<DOMPlugin>> dom_plugins_;
+  mutable bool plugins_initialized_ = false;
 };
 
 }  // namespace blink
