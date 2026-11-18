@@ -51,6 +51,7 @@ class ContextGroup;
 class GPUTracer;
 class MultiDrawManager;
 class GLES2DecoderPassthroughImpl;
+class GLES2ExternalFramebuffer;
 class PassthroughProgramCache;
 
 struct MappedBuffer {
@@ -187,6 +188,13 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   // Gets the GLES2 Util which holds info.
   GLES2Util* GetGLES2Util() override;
+
+  // PPAPI revival: attaches a SharedImage to the default framebuffer.
+  void SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                        int samples,
+                                        bool preserve,
+                                        bool needs_depth,
+                                        bool needs_stencil) override;
 
   // Gets the associated GLContext and GLSurface.
   gl::GLContext* GetGLContext() override;
@@ -711,6 +719,9 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   GLenum emulated_default_framebuffer_format_;
   std::unique_ptr<EmulatedDefaultFramebuffer> emulated_back_buffer_;
+
+  // PPAPI revival: SharedImage-backed default framebuffer (Flash Stage3D).
+  std::unique_ptr<GLES2ExternalFramebuffer> external_default_framebuffer_;
 
   // Maximum 2D resource sizes for limiting offscreen framebuffer sizes
   GLint max_renderbuffer_size_ = 0;

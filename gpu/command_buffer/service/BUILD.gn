@@ -158,6 +158,8 @@ target(link_target_type, "gles2_sources") {
     "gles2_cmd_decoder.cc",
     "gles2_cmd_decoder.h",
     "gles2_cmd_decoder_autogen.h",
+    "gles2_external_framebuffer.cc",
+    "gles2_external_framebuffer.h",
     "gles2_cmd_decoder_passthrough.cc",
     "gles2_cmd_decoder_passthrough.h",
     "gles2_cmd_decoder_passthrough_doer_prototypes.h",

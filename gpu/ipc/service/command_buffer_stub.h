@@ -228,6 +228,14 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   void SignalSyncToken(const SyncToken& sync_token, uint32_t id) override;
   void SignalQuery(uint32_t query, uint32_t id) override;
 
+  // PPAPI revival: attaches a SharedImage to the command buffer's default
+  // framebuffer (used by PPB_Graphics3D for Flash Stage3D).
+  virtual void OnSetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                                  int samples_count,
+                                                  bool preserve,
+                                                  bool needs_depth,
+                                                  bool needs_stencil) {}
+
   scoped_refptr<MemoryTracker> CreateMemoryTracker() const;
 
   // Must be called during Initialize(). Takes ownership to co-ordinate

@@ -48,6 +48,11 @@ class GPU_IPC_SERVICE_EXPORT GLES2CommandBufferStub final
                                 gfx::GpuFenceHandle handle) override;
   void GetGpuFenceHandle(uint32_t gpu_fence_id,
                          GetGpuFenceHandleCallback callback) override;
+  void OnSetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                          int samples_count,
+                                          bool preserve,
+                                          bool needs_depth,
+                                          bool needs_stencil) override;
 
   // The group of contexts that share namespaces with this context.
   scoped_refptr<gles2::ContextGroup> context_group_;

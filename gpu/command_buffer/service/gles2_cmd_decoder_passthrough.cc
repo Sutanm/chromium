@@ -8,6 +8,7 @@
 #endif
 
 #include "gpu/command_buffer/service/gles2_cmd_decoder_passthrough.h"
+#include "gpu/command_buffer/service/gles2_external_framebuffer.h"
 
 #include <algorithm>
 #include <memory>
@@ -1251,6 +1252,58 @@ void GLES2DecoderPassthroughImpl::ReleaseSurface() {
   }
   context_->ReleaseCurrent(surface_.get());
   surface_ = nullptr;
+}
+
+// PPAPI revival: attach a SharedImage (compositor-visible) as this context's
+// default framebuffer, so PPB_Graphics3D clients (Flash Stage3D) can render
+// into it. Ported from Chromium 138 (removed together with PPAPI).
+void GLES2DecoderPassthroughImpl::SetDefaultFramebufferSharedImage(
+    const Mailbox& mailbox,
+    int samples,
+    bool preserve,
+    bool needs_depth,
+    bool needs_stencil) {
+  if (!offscreen_)
+    return;
+
+  if (!external_default_framebuffer_) {
+    external_default_framebuffer_ = std::make_unique<GLES2ExternalFramebuffer>(
+        /*passthrough=*/true, *feature_info_,
+        group_->shared_image_representation_factory());
+  }
+
+  if (!external_default_framebuffer_->AttachSharedImage(
+          mailbox, samples, preserve, needs_depth, needs_stencil)) {
+    return;
+  }
+
+  GLuint default_framebuffer_id;
+  if (external_default_framebuffer_->IsSharedImageAttached()) {
+    default_framebuffer_id = external_default_framebuffer_->GetFramebufferId();
+  } else {
+    default_framebuffer_id = emulated_back_buffer_->framebuffer_service_id;
+  }
+
+  framebuffer_id_map_.RemoveClientID(0);
+  framebuffer_id_map_.SetIDMapping(0, default_framebuffer_id);
+
+  const bool supports_separate_fbo_bindings =
+      feature_info_->feature_flags().chromium_framebuffer_multisample ||
+      feature_info_->IsWebGL2OrES3Context();
+
+  if (supports_separate_fbo_bindings) {
+    if (bound_draw_framebuffer_ == 0) {
+      api()->glBindFramebufferEXTFn(GL_DRAW_FRAMEBUFFER, default_framebuffer_id);
+    }
+    if (bound_read_framebuffer_ == 0) {
+      api()->glBindFramebufferEXTFn(GL_READ_FRAMEBUFFER, default_framebuffer_id);
+    }
+  } else {
+    DCHECK_EQ(bound_draw_framebuffer_, bound_read_framebuffer_);
+    if (bound_draw_framebuffer_ == 0) {
+      api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, default_framebuffer_id);
+    }
+  }
 }
 
 bool GLES2DecoderPassthroughImpl::MakeCurrent() {

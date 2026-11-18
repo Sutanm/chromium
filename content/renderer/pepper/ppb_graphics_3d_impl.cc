@@ -115,20 +115,21 @@ class PPB_Graphics3D_Impl::ColorBuffer {
               bool needs_depth,
               bool needs_stencil) {
     DCHECK_EQ(state, State::kDetached);
-    // PPAPI revival: Chromium 140 removed the default-framebuffer shared image
-    // API; PPB_Graphics3D compositing is degraded (Flash 2D is unaffected).
-    (void)command_buffer;
-    (void)samples_count;
-    (void)preserve;
-    (void)needs_depth;
-    (void)needs_stencil;
+    // Chromium removed this API together with PPAPI. It is restored in gpu/
+    // (mojom + decoder + client) so PPB_Graphics3D — and therefore Flash
+    // Stage3D — renders into a compositor-visible SharedImage instead of
+    // drawing into a framebuffer nothing can see.
+    command_buffer->SetDefaultFramebufferSharedImage(
+        client_shared_image_->mailbox(), sync_token_, samples_count, preserve,
+        needs_depth, needs_stencil);
     state = State::kAttached;
     sync_token_.Clear();
   }
 
   void Detach(gpu::CommandBufferProxyImpl* command_buffer) {
     DCHECK_EQ(state, State::kAttached);
-    (void)command_buffer;
+    command_buffer->SetDefaultFramebufferSharedImage(
+        gpu::Mailbox(), gpu::SyncToken(), 0, false, false, false);
     state = State::kDetached;
   }
 

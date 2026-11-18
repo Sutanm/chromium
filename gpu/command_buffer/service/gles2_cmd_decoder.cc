@@ -8,6 +8,7 @@
 #endif
 
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
+#include "gpu/command_buffer/service/gles2_external_framebuffer.h"
 
 #include <limits.h>
 #include <stddef.h>
@@ -572,6 +573,11 @@ class GLES2DecoderImpl : public GLES2Decoder,
   void Destroy(bool have_context) override;
   void SetSurface(const scoped_refptr<gl::GLSurface>& surface) override;
   void ReleaseSurface() override;
+  void SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                        int samples,
+                                        bool preserve,
+                                        bool needs_depth,
+                                        bool needs_stencil) override;
   bool ResizeOffscreenFramebuffer(const gfx::Size& size);
   bool MakeCurrent() override;
   gl::GLApi* api() const { return state_.api(); }
@@ -2387,6 +2393,9 @@ class GLES2DecoderImpl : public GLES2Decoder,
   // The offscreen frame buffer that the client renders to.
   std::unique_ptr<BackFramebuffer> offscreen_target_frame_buffer_;
   std::unique_ptr<BackTexture> offscreen_target_color_texture_;
+
+  // PPAPI revival: SharedImage-backed default framebuffer (Flash Stage3D).
+  std::unique_ptr<GLES2ExternalFramebuffer> external_default_framebuffer_;
 
   // The format of the texture or renderbuffer backing the offscreen
   // framebuffer.
@@ -4595,6 +4604,24 @@ void GLES2DecoderImpl::ReleaseSurface() {
   context_->ReleaseCurrent(surface_.get());
   surface_ = nullptr;
 }
+
+void GLES2DecoderImpl::SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                                       int samples,
+                                                       bool preserve,
+                                                       bool needs_depth,
+                                                       bool needs_stencil) {
+  if (!external_default_framebuffer_) {
+    external_default_framebuffer_ = std::make_unique<GLES2ExternalFramebuffer>(
+        /*passthrough=*/false, *group_->feature_info(),
+        group_->shared_image_representation_factory());
+  }
+  if (!external_default_framebuffer_->AttachSharedImage(
+          mailbox, samples, preserve, needs_depth, needs_stencil)) {
+    return;
+  }
+  RestoreCurrentFramebufferBindings();
+}
+
 
 error::Error GLES2DecoderImpl::HandleCreateGpuFenceINTERNAL(
     uint32_t immediate_data_size,
