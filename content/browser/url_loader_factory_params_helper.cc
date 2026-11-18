@@ -106,17 +106,7 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
     params->is_orb_enabled = false;
     params->disable_web_security = true;
   } else {
-    // 【移植】BaoFlashBrowser：关闭 Opaque Response Blocking。
-    //
-    // 原因：PPAPI Flash 的 URLLoader 走本帧的 URLLoaderFactory，跨域拉取配置
-    // （4399/7k7k 的 config/*.xml，Content-Type: text/xml）会被 ORB 判为不可
-    // sniff 而拦下（net::ERR_BLOCKED_BY_ORB = -32）。实测《美食大战老鼠》因此
-    // 有 48 个 .xml 请求失败并卡在 75%；关闭 ORB 后 91/91 全部成功，登录链路
-    // （认证 → HallServer → 角色列表 → 角色登陆）与 Chromium 87 一致。
-    // Chromium 87（最后一个带 Flash 的版本）没有 ORB，这里对齐 87 行为。
-    // TODO: 将来若能改 embedder，可用 ContentBrowserClient::
-    // OverrideURLLoaderFactoryParams 只为插件帧关闭 ORB。
-    params->is_orb_enabled = false;
+    params->is_orb_enabled = true;
   }
 
   params->trust_token_issuance_policy = trust_token_issuance_policy;

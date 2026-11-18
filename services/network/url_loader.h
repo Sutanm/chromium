@@ -714,6 +714,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   // body.
   const bool has_fetch_streaming_upload_body_;
 
+  // 【移植】请求是否要跳过 ORB（只有 PPAPI 插件请求会置位）。
+  const bool skip_orb_;
+
   // Whether DevToolsObserver::OnRaw{Request,Response} should be emitted
   // (i.e. the request being loaded is monitored by DevTools).
   bool enable_reporting_raw_headers_ = false;

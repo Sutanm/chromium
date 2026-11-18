@@ -283,6 +283,14 @@ int32_t PepperURLLoaderHost::InternalOnHostMsgOpen(
             web_request.GetRequestContext());
   DCHECK(web_request.GetSkipServiceWorker());
 
+  // 【移植】插件请求跳过 Opaque Response Blocking。
+  //
+  // Flash 需要跨域拉取 config/*.xml 之类的 text/xml 资源；ORB 会把这些
+  // no-cors 跨域响应判为可被利用的数据而拦掉（net::ERR_BLOCKED_BY_ORB = -32），
+  // 导致 4399/7k7k 的《美食大战老鼠》等联网游戏卡在资源加载阶段。
+  // 这里只给插件流量打标记，页面 JavaScript 的请求不受影响，ORB 保护完整保留。
+  web_request.SetSkipOrb(true);
+
   WebAssociatedURLLoaderOptions options;
   if (has_universal_access_) {
     options.grant_universal_access = true;

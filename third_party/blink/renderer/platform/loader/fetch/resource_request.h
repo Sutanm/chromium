@@ -340,6 +340,11 @@ class PLATFORM_EXPORT ResourceRequestHead {
 
   // True if service workers should not get events for the request.
   bool GetSkipServiceWorker() const { return skip_service_worker_; }
+
+  // 【移植】PPAPI 插件请求跳过 ORB（见 services/network/public/mojom/
+  // url_request.mojom 的 skip_orb 注释）。
+  bool GetSkipOrb() const { return skip_orb_; }
+  void SetSkipOrb(bool skip_orb) { skip_orb_ = skip_orb; }
   void SetSkipServiceWorker(bool skip_service_worker) {
     skip_service_worker_ = skip_service_worker;
   }
@@ -725,6 +730,7 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool shared_storage_writable_eligible_ : 1;
   bool allow_stale_response_ : 1;
   bool skip_service_worker_ : 1;
+  bool skip_orb_ : 1;
   bool download_to_cache_only_ : 1;
   bool site_for_cookies_set_ : 1;
   bool is_form_submission_ : 1;

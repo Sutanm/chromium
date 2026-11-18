@@ -321,6 +321,7 @@ void PopulateResourceRequest(const ResourceRequestHead& src,
   dest->priority_incremental = src.PriorityIncremental();
   dest->cors_preflight_policy = src.CorsPreflightPolicy();
   dest->skip_service_worker = src.GetSkipServiceWorker();
+  dest->skip_orb = src.GetSkipOrb();
   dest->mode = src.GetMode();
   dest->destination = src.GetRequestDestination();
   dest->credentials_mode = src.GetCredentialsMode();
