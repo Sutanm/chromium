@@ -31,6 +31,7 @@ class Rect;
 namespace ppapi {
 class PpapiPermissions;
 class VarTracker;
+struct URLRequestInfoData;
 }
 
 namespace IPC {
@@ -90,6 +91,12 @@ class PepperPluginInstance {
   virtual bool IsFullPagePlugin() = 0;
 
   virtual bool IsRectTopmost(const gfx::Rect& rect) = 0;
+
+  // Navigates the plugin's frame (PPB_Flash::Navigate). |target| is the frame
+  // target name (empty means the current frame). Returns PP_OK on success.
+  virtual int32_t Navigate(const ppapi::URLRequestInfoData& request,
+                           const char* target,
+                           bool from_user_action) = 0;
 
   // Flash-specific fullscreen entry point (PPB_Flash_Fullscreen). Flash calls
   // this instead of the standard PPB_Fullscreen API. Returns true if the

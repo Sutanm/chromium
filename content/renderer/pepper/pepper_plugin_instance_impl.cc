@@ -2588,6 +2588,44 @@ bool PepperPluginInstanceImpl::IsRectTopmost(const gfx::Rect& rect) {
   return container_->IsRectTopmost(rect);
 }
 
+int32_t PepperPluginInstanceImpl::Navigate(
+    const ppapi::URLRequestInfoData& request,
+    const char* target,
+    bool from_user_action) {
+  if (!container_)
+    return PP_ERROR_FAILED;
+
+  blink::WebDocument document = container_->GetDocument();
+  blink::WebLocalFrame* frame = document.GetFrame();
+  if (!frame)
+    return PP_ERROR_FAILED;
+
+  ppapi::URLRequestInfoData completed_request = request;
+  blink::WebURLRequest web_request;
+  if (!CreateWebURLRequest(pp_instance(), &completed_request, frame,
+                           &web_request)) {
+    return PP_ERROR_FAILED;
+  }
+  web_request.SetSiteForCookies(document.SiteForCookies());
+  if (HasTransientUserActivation())
+    web_request.SetHasUserGesture(true);
+
+  GURL gurl(web_request.Url());
+  if (gurl.SchemeIs(url::kJavaScriptScheme)) {
+    // Flash's PPB_Flash::Navigate does not support javascript: URLs; Blink no
+    // longer exposes WebPluginContainer::ExecuteScriptURL (used by M80), so
+    // reject the request outright instead of executing script.
+    return PP_ERROR_NOACCESS;
+  }
+
+  // Only GETs and POSTs are supported.
+  if (web_request.HttpMethod() != "GET" && web_request.HttpMethod() != "POST")
+    return PP_ERROR_BADARGUMENT;
+
+  container_->LoadFrameRequest(web_request, blink::WebString::FromUTF8(target));
+  return PP_OK;
+}
+
 int PepperPluginInstanceImpl::MakePendingFileRefRendererHost(
     const base::FilePath& path) {
   RendererPpapiHostImpl* host_impl = module_->renderer_ppapi_host();

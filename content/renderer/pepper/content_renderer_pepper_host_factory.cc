@@ -22,6 +22,7 @@
 #include "content/renderer/pepper/pepper_file_ref_renderer_host.h"
 #include "content/renderer/pepper/pepper_file_system_host.h"
 #include "content/renderer/pepper/pepper_flash_fullscreen_host.h"
+#include "content/renderer/pepper/pepper_flash_renderer_host.h"
 #include "content/renderer/pepper/pepper_graphics_2d_host.h"
 #include "content/renderer/pepper/pepper_media_stream_video_track_host.h"
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
@@ -181,6 +182,13 @@ ContentRendererPepperHostFactory::CreateResourceHost(
   if (message.type() == PpapiHostMsg_FlashFullscreen_Create::ID) {
     return std::unique_ptr<ppapi::host::ResourceHost>(
         new PepperFlashFullscreenHost(host_, instance, resource));
+  }
+
+  // PPAPI revival: Flash-private PPB_Flash singleton (proxy lookup, navigate,
+  // always-on-top, hit testing, printing).
+  if (message.type() == PpapiHostMsg_Flash_Create::ID) {
+    return std::unique_ptr<ppapi::host::ResourceHost>(
+        new PepperFlashRendererHost(host_, instance, resource));
   }
 
   return nullptr;
