@@ -12,6 +12,7 @@
 #include "content/browser/renderer_host/pepper/pepper_file_io_host.h"
 #include "content/browser/renderer_host/pepper/pepper_file_ref_host.h"
 #include "content/browser/renderer_host/pepper/pepper_file_system_browser_host.h"
+#include "content/browser/renderer_host/pepper/pepper_flash_browser_host.h"
 #include "content/browser/renderer_host/pepper/pepper_flash_file_message_filter.h"
 #include "content/browser/renderer_host/pepper/pepper_gamepad_host.h"
 #include "content/browser/renderer_host/pepper/pepper_host_resolver_message_filter.h"
@@ -212,6 +213,12 @@ ContentBrowserPepperHostFactory::CreateResourceHost(
   // PPAPI revival: Flash-private file API (PPB_Flash_File / FileModuleLocal).
   // Flash needs it for its writable data root (LSO / SharedObject, temporary
   // files, FileReference). Flash is always allowed to use it in this build.
+  // PPAPI revival: Flash-private PPB_Flash singleton messages addressed to the
+  // browser (UpdateActivity / GetLocalTimeZoneOffset / GetLocalDataRestrictions).
+  if (message.type() == PpapiHostMsg_Flash_Create::ID) {
+    return std::unique_ptr<ppapi::host::ResourceHost>(
+        new PepperFlashBrowserHost(host_, instance, resource));
+  }
   if (message.type() == PpapiHostMsg_FlashFile_Create::ID) {
     scoped_refptr<ppapi::host::ResourceMessageFilter> flash_file_filter(
         base::MakeRefCounted<PepperFlashFileMessageFilter>(instance, host_));

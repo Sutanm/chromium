@@ -21,6 +21,7 @@
 #include "content/renderer/pepper/pepper_file_chooser_host.h"
 #include "content/renderer/pepper/pepper_file_ref_renderer_host.h"
 #include "content/renderer/pepper/pepper_file_system_host.h"
+#include "content/renderer/pepper/pepper_flash_font_file_host.h"
 #include "content/renderer/pepper/pepper_flash_fullscreen_host.h"
 #include "content/renderer/pepper/pepper_flash_renderer_host.h"
 #include "content/renderer/pepper/pepper_graphics_2d_host.h"
@@ -184,6 +185,18 @@ ContentRendererPepperHostFactory::CreateResourceHost(
         new PepperFlashFullscreenHost(host_, instance, resource));
   }
 
+  // PPAPI revival: Flash-private font file API (PPB_Flash_FontFile).
+  if (message.type() == PpapiHostMsg_FlashFontFile_Create::ID) {
+    ppapi::proxy::SerializedFontDescription description;
+    PP_PrivateFontCharset charset = PP_PRIVATEFONTCHARSET_ANSI;
+    if (!ppapi::UnpackMessage<PpapiHostMsg_FlashFontFile_Create>(
+            message, &description, &charset)) {
+      return nullptr;
+    }
+    return std::unique_ptr<ppapi::host::ResourceHost>(
+        new PepperFlashFontFileHost(host_, instance, resource, description,
+                                    charset));
+  }
   // PPAPI revival: Flash-private PPB_Flash singleton (proxy lookup, navigate,
   // always-on-top, hit testing, printing).
   if (message.type() == PpapiHostMsg_Flash_Create::ID) {
