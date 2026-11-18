@@ -97,6 +97,13 @@ class MessageChannel :
 
   explicit MessageChannel(PepperPluginInstanceImpl* instance);
 
+  // 【移植】Chromium 140 的 gin 不再由 NamedPropertyInterceptor 构造函数自动注册
+  // 拦截器（87 的 interceptor.cc 会调用 PerIsolateData::SetNamedPropertyInterceptor）。
+  // 140 只保留 DeprecatedWrappableWithNamedPropertyInterceptor<T> 这一种写法；
+  // 这里显式 override 达到同样效果，否则 HasOwnProperty/命名属性查询全部失效 ——
+  // 表现就是 JS 拿不到 Flash 暴露的任何方法（el.GetVariable / checkflash ...）。
+  gin::NamedPropertyInterceptor* GetNamedPropertyInterceptor() override;
+
   // gin::NamedPropertyInterceptor
   v8::Local<v8::Value> GetNamedProperty(v8::Isolate* isolate,
                                         const std::string& property) override;

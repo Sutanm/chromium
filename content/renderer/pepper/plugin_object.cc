@@ -99,6 +99,11 @@ PP_Var PluginObject::Create(PepperPluginInstanceImpl* instance,
   return result.Release();
 }
 
+// 【移植】140 的 gin 不再自动注册命名属性拦截器，需显式返回。
+gin::NamedPropertyInterceptor* PluginObject::GetNamedPropertyInterceptor() {
+  return this;
+}
+
 v8::Local<v8::Value> PluginObject::GetNamedProperty(
     v8::Isolate* isolate,
     const std::string& identifier) {
