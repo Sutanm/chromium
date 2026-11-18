@@ -312,6 +312,7 @@ gpu::ContextResult GLES2Implementation::Initialize(
   // on Client & Service.
   if (gl_capabilities_.bind_generates_resource_chromium !=
       (share_group_->bind_generates_resource() ? 1 : 0)) {
+    LOG(ERROR) << "[g3d] bind_generates_resource mismatch -> kFatalFailure";
     SetGLError(GL_INVALID_OPERATION, "Initialize",
                "Service bind_generates_resource mismatch.");
     LOG(ERROR) << "ContextResult::kFatalFailure: "

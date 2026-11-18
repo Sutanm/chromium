@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/gles2_cmd_helper.h"
+#include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/client/gles2_implementation.h"
 #include "gpu/command_buffer/client/shared_memory_limits.h"
 #include "gpu/command_buffer/client/transfer_buffer.h"
@@ -130,15 +131,28 @@ bool PPB_Graphics3D_Shared::CreateGLES2Impl(
 
   // Create the GLES2 helper, which writes the command buffer protocol.
   gles2_helper_ = std::make_unique<gpu::gles2::GLES2CmdHelper>(command_buffer);
-  if (gles2_helper_->Initialize(limits.command_buffer_size) !=
-      gpu::ContextResult::kSuccess)
+  const auto helper_result =
+      gles2_helper_->Initialize(limits.command_buffer_size);
+  if (helper_result != gpu::ContextResult::kSuccess) {
+    LOG(ERROR) << "[g3d] GLES2CmdHelper::Initialize failed result="
+               << static_cast<int>(helper_result)
+               << " cmd_buf_size=" << limits.command_buffer_size;
     return false;
+  }
 
   // Create a transfer buffer used to copy resources between the renderer
   // process and the GPU process.
   transfer_buffer_ = std::make_unique<gpu::TransferBuffer>(gles2_helper_.get());
 
-  const bool bind_creates_resources = true;
+  // PPAPI revival: the GPU service reports whether resource names are generated
+  // on the service side (bind_generates_resource). Chromium 138+ reports false
+  // for the passthrough decoder, while GLES2Implementation::Initialize hard
+  // fails on a mismatch with its ShareGroup ("bind_generates_resource
+  // mismatch" -> kFatalFailure), which used to make every PPB_Graphics3D
+  // creation fail in the plugin process and pushed Flash Stage3D back to its
+  // software renderer. Follow the reported capability instead of hardcoding.
+  const bool bind_creates_resources =
+      GetGpuControl()->GetGLCapabilities().bind_generates_resource_chromium != 0;
   const bool lose_context_when_out_of_memory = false;
   const bool support_client_side_arrays = true;
 
@@ -149,8 +163,12 @@ bool PPB_Graphics3D_Shared::CreateGLES2Impl(
       lose_context_when_out_of_memory, support_client_side_arrays,
       GetGpuControl());
 
-  if (gles2_impl_->Initialize(limits) != gpu::ContextResult::kSuccess)
+  const auto impl_result = gles2_impl_->Initialize(limits);
+  if (impl_result != gpu::ContextResult::kSuccess) {
+    LOG(ERROR) << "[g3d] GLES2Implementation::Initialize failed result="
+               << static_cast<int>(impl_result);
     return false;
+  }
 
   gles2_impl_->TraceBeginCHROMIUM("gpu_toplevel", "PPAPIContext");
 

@@ -314,12 +314,16 @@ bool PPB_Graphics3D_Impl::InitRaw(
     gpu::CommandBufferId* command_buffer_id) {
   PepperPluginInstanceImpl* plugin_instance =
       HostGlobals::Get()->GetInstance(pp_instance());
-  if (!plugin_instance)
+  if (!plugin_instance) {
+    LOG(ERROR) << "[g3d] InitRaw: no plugin instance";
     return false;
+  }
 
   RenderFrame* render_frame = plugin_instance->GetRenderFrame();
-  if (!render_frame)
+  if (!render_frame) {
+    LOG(ERROR) << "[g3d] InitRaw: no render frame";
     return false;
+  }
 
   const blink::web_pref::WebPreferences& prefs =
       render_frame->GetBlinkPreferences();
@@ -329,15 +333,21 @@ bool PPB_Graphics3D_Impl::InitRaw(
   (void)prefs;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
-  if (!render_thread)
+  if (!render_thread) {
+    LOG(ERROR) << "[g3d] InitRaw: no render thread";
     return false;
-  if (render_thread->IsGpuCompositingDisabled())
+  }
+  if (render_thread->IsGpuCompositingDisabled()) {
+    LOG(ERROR) << "[g3d] InitRaw: gpu compositing disabled";
     return false;
+  }
 
   scoped_refptr<gpu::GpuChannelHost> channel =
       render_thread->EstablishGpuChannelSync();
-  if (!channel)
+  if (!channel) {
+    LOG(ERROR) << "[g3d] InitRaw: no gpu channel";
     return false;
+  }
   // 3D access might be blocklisted.
   if (channel->gpu_feature_info()
           .status_values[gpu::GPU_FEATURE_TYPE_ACCELERATED_WEBGL] ==
@@ -377,8 +387,11 @@ bool PPB_Graphics3D_Impl::InitRaw(
       base::SingleThreadTaskRunner::GetCurrentDefault());
   auto result = command_buffer_->Initialize(
       share_buffer, kGpuStreamPriorityDefault, attrib_helper, GURL(), "Pepper");
-  if (result != gpu::ContextResult::kSuccess)
+  if (result != gpu::ContextResult::kSuccess) {
+    LOG(ERROR) << "[g3d] InitRaw: command buffer init failed result="
+               << static_cast<int>(result);
     return false;
+  }
 
   command_buffer_->SetGpuControlClient(this);
 

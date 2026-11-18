@@ -75,7 +75,11 @@ bool Graphics3D::Init(gpu::gles2::GLES2Implementation* share_gles2,
       host_resource(), &data->flush_info, dispatcher, capabilities,
       gl_capabilities, std::move(shared_state), command_buffer_id);
 
-  return CreateGLES2Impl(share_gles2);
+  const bool gles2_ok = CreateGLES2Impl(share_gles2);
+  if (!gles2_ok) {
+    LOG(ERROR) << "[g3d] Graphics3D::Init: CreateGLES2Impl failed";
+  }
+  return gles2_ok;
 }
 
 PP_Bool Graphics3D::SetGetBuffer(int32_t /* transfer_buffer_id */) {
@@ -246,8 +250,10 @@ PP_Resource PPB_Graphics3D_Proxy::CreateProxyResource(
       API_ID_PPB_GRAPHICS_3D, instance, share_host, attrib_helper, &result,
       &capabilities, &gl_capabilities, &shared_state, &command_buffer_id));
 
-  if (result.is_null())
+  if (result.is_null()) {
+    LOG(ERROR) << "[g3d] CreateProxyResource: renderer returned null resource";
     return 0;
+  }
 
   scoped_refptr<Graphics3D> graphics_3d(
       new Graphics3D(result, attrib_helper.offscreen_framebuffer_size));
