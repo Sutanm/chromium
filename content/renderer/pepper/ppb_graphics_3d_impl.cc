@@ -27,7 +27,9 @@
 #include "content/renderer/pepper/host_globals.h"
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
 #include "content/renderer/pepper/plugin_module.h"
+#include "content/renderer/render_frame_impl.h"
 #include "content/renderer/render_thread_impl.h"
+#include "third_party/blink/public/web/web_frame_widget.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/common/context_creation_attribs.h"
@@ -285,6 +287,28 @@ bool PPB_Graphics3D_Impl::BindToInstance(bool bind) {
 
 bool PPB_Graphics3D_Impl::IsOpaque() { return !has_alpha_; }
 
+// PPAPI revival: see header. Requests a visual-state callback so the 3D
+// SwapBuffersACK is sent only after the frame has been presented.
+void PPB_Graphics3D_Impl::RequestSwapAckAfterPresentation() {
+  PepperPluginInstanceImpl* instance =
+      HostGlobals::Get()->GetInstance(pp_instance());
+  blink::WebFrameWidget* widget = nullptr;
+  blink::WebLocalFrame* frame = nullptr;
+  if (instance && instance->render_frame()) {
+    frame = instance->render_frame()->GetWebFrame();
+  }
+  if (frame) {
+    widget = frame->LocalRoot()->FrameWidget();
+  }
+  if (widget &&
+      widget->InsertVisualStateRequest(base::BindOnce(
+          &PPB_Graphics3D_Impl::ViewInitiatedPaint,
+          weak_ptr_factory_.GetWeakPtr()))) {
+    return;
+  }
+  ViewInitiatedPaint();
+}
+
 void PPB_Graphics3D_Impl::ViewInitiatedPaint() {
   commit_pending_ = false;
 
@@ -531,6 +555,7 @@ int32_t PPB_Graphics3D_Impl::DoSwapBuffers(const gpu::SyncToken& sync_token,
     HostGlobals::Get()
         ->GetInstance(pp_instance())
         ->CommitTransferableResource(resource);
+    RequestSwapAckAfterPresentation();
     commit_pending_ = true;
 
     if (!is_single_buffered_) {

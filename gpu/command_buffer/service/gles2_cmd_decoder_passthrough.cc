@@ -1184,6 +1184,14 @@ void GLES2DecoderPassthroughImpl::Destroy(bool have_context) {
     emulated_back_buffer_.reset();
   }
 
+  // PPAPI revival: GLES2ExternalFramebuffer must be destroyed explicitly, its
+  // destructor DCHECKs that Destroy() already ran (Chromium 138 did this; the
+  // 140 port lost it together with the class itself).
+  if (external_default_framebuffer_) {
+    external_default_framebuffer_->Destroy(have_context);
+    external_default_framebuffer_.reset();
+  }
+
   if (gpu_fence_manager_.get()) {
     gpu_fence_manager_->Destroy(have_context);
     gpu_fence_manager_.reset();
@@ -2730,7 +2738,7 @@ void GLES2DecoderPassthroughImpl::VerifyServiceTextureObjectsExist() {
 
 bool GLES2DecoderPassthroughImpl::IsEmulatedFramebufferBound(
     GLenum target) const {
-  if (!emulated_back_buffer_) {
+  if (!emulated_back_buffer_ && !external_default_framebuffer_) {
     return false;
   }
 

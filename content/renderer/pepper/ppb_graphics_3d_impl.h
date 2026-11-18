@@ -73,6 +73,13 @@ class PPB_Graphics3D_Impl : public ppapi::PPB_Graphics3D_Shared,
   // These messages are used to send Flush callbacks to the plugin.
   void ViewInitiatedPaint();
 
+  // PPAPI revival: Chromium 140 dropped
+  // WebLocalFrameClient::DidCommitAndDrawCompositorFrame, which used to
+  // drive ViewInitiatedPaint() (and therefore the 3D SwapBuffersACK).
+  // Ask for a visual-state callback instead, so the ACK is sent after the
+  // frame is actually presented.
+  void RequestSwapAckAfterPresentation();
+
   gpu::CommandBufferProxyImpl* GetCommandBufferProxy();
 
  protected:
