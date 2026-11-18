@@ -38,10 +38,13 @@ ppapi::Preferences PpapiPreferencesBuilder::Build(
   const bool gpu_accelerated =
       gpu_feature_info.status_values[gpu::GPU_FEATURE_TYPE_ACCELERATED_GL] ==
       gpu::kGpuFeatureStatusEnabled;
-  // Only advertise Stage3D; is_3d_supported also switches Flash's *2D*
-  // renderer to the GPU path, which currently composites as a blank (white)
-  // layer in this port, so keep 2D on the proven software path for now.
-  ppapi_prefs.is_3d_supported = false;
+  // 与 Chromium 87 的取值一致（flash_3d_enabled / flash_stage3d_enabled /
+  // flash_stage3d_baseline_enabled 三者同源）：Flash 的 2D 与 Stage3D 都走 GPU。
+  // 早期版本这里只放开 Stage3D，是因为 2D-GPU 会白屏；白屏的真正原因是
+  // 3D SwapBuffersACK 断流 + GPU 进程崩溃（见 ppb_graphics_3d_impl.cc 的
+  // RequestSwapAckAfterPresentation 与 gles2_cmd_decoder_passthrough.cc 的
+  // external framebuffer 销毁修复），两处修好后 2D-GPU 也正常。
+  ppapi_prefs.is_3d_supported = gpu_accelerated;
   ppapi_prefs.is_stage3d_supported = gpu_accelerated;
   ppapi_prefs.is_stage3d_baseline_supported = gpu_accelerated;
   ppapi_prefs.is_accelerated_video_decode_enabled =
