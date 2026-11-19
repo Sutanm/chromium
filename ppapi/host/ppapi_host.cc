@@ -25,10 +25,71 @@
 #include "ppapi/proxy/serialized_handle.h"
 #include "ppapi/shared_impl/host_resource.h"
 
+
+
 namespace ppapi {
 namespace host {
 
 using proxy::SerializedHandle;
+
+// 【实验探针】把 Flash 私有 IPC 消息的 ID 映射成名字，用于观测"哪些 Flash
+// 私有能力被目标内容真实调用了、而宿主并不存在"。
+namespace {
+
+struct FlashMsgName {
+  int id;
+  const char* name;
+};
+
+#define BAO_FLASH_MSG_NAME(tag) {PpapiHostMsg_##tag::ID, #tag}
+const FlashMsgName kFlashMsgNames[] = {
+    BAO_FLASH_MSG_NAME(Flash_Create),
+    BAO_FLASH_MSG_NAME(Flash_UpdateActivity),
+    BAO_FLASH_MSG_NAME(Flash_GetProxyForURL),
+    BAO_FLASH_MSG_NAME(Flash_GetLocalTimeZoneOffset),
+    BAO_FLASH_MSG_NAME(Flash_GetLocalDataRestrictions),
+    BAO_FLASH_MSG_NAME(Flash_SetInstanceAlwaysOnTop),
+    BAO_FLASH_MSG_NAME(Flash_DrawGlyphs),
+    BAO_FLASH_MSG_NAME(Flash_Navigate),
+    BAO_FLASH_MSG_NAME(Flash_IsRectTopmost),
+    BAO_FLASH_MSG_NAME(Flash_InvokePrinting),
+    BAO_FLASH_MSG_NAME(FlashClipboard_Create),
+    BAO_FLASH_MSG_NAME(FlashClipboard_RegisterCustomFormat),
+    BAO_FLASH_MSG_NAME(FlashClipboard_IsFormatAvailable),
+    BAO_FLASH_MSG_NAME(FlashClipboard_ReadData),
+    BAO_FLASH_MSG_NAME(FlashClipboard_WriteData),
+    BAO_FLASH_MSG_NAME(FlashClipboard_GetSequenceNumber),
+    BAO_FLASH_MSG_NAME(FlashDRM_Create),
+    BAO_FLASH_MSG_NAME(FlashDRM_GetDeviceID),
+    BAO_FLASH_MSG_NAME(FlashDRM_GetHmonitor),
+    BAO_FLASH_MSG_NAME(FlashDRM_GetVoucherFile),
+    BAO_FLASH_MSG_NAME(FlashDRM_MonitorIsExternal),
+    BAO_FLASH_MSG_NAME(FlashFile_Create),
+    BAO_FLASH_MSG_NAME(FlashFile_OpenFile),
+    BAO_FLASH_MSG_NAME(FlashFile_RenameFile),
+    BAO_FLASH_MSG_NAME(FlashFile_DeleteFileOrDir),
+    BAO_FLASH_MSG_NAME(FlashFile_CreateDir),
+    BAO_FLASH_MSG_NAME(FlashFile_QueryFile),
+    BAO_FLASH_MSG_NAME(FlashFile_GetDirContents),
+    BAO_FLASH_MSG_NAME(FlashFile_CreateTemporaryFile),
+    BAO_FLASH_MSG_NAME(FlashFontFile_Create),
+    BAO_FLASH_MSG_NAME(FlashFontFile_GetFontTable),
+    BAO_FLASH_MSG_NAME(FlashFullscreen_Create),
+    BAO_FLASH_MSG_NAME(FlashFullscreen_SetFullscreen),
+    BAO_FLASH_MSG_NAME(FlashMenu_Create),
+    BAO_FLASH_MSG_NAME(FlashMenu_Show),
+};
+#undef BAO_FLASH_MSG_NAME
+
+const char* FlashMsgNameOf(int type) {
+  for (const auto& entry : kFlashMsgNames) {
+    if (entry.id == type)
+      return entry.name;
+  }
+  return nullptr;  // 未知（非 Flash 私有）消息由调用方跳过
+}
+
+}  // namespace
 
 namespace {
 
@@ -61,7 +122,6 @@ bool PpapiHost::Send(IPC::Message* msg) {
 }
 
 bool PpapiHost::OnMessageReceived(const IPC::Message& msg) {
-  LOG(ERROR) << "[ppdbg] PpapiHost::OnMessageReceived type=" << msg.type();
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(PpapiHost, msg)
     IPC_MESSAGE_HANDLER(PpapiHostMsg_ResourceCall,
@@ -85,6 +145,15 @@ bool PpapiHost::OnMessageReceived(const IPC::Message& msg) {
         handled = true;
         break;
       }
+    }
+  }
+
+  if (!handled) {
+    // PPAPI revival 诊断：只在消息属于 Flash 私有接口时才报告。标准 PPAPI 消息
+    // 由其他路由处理，全量打印只会产生噪声（实测一次页面加载 639 条）。
+    if (const char* name = FlashMsgNameOf(msg.type())) {
+      LOG(ERROR) << "[ppexp] UNHANDLED Flash host message type=" << msg.type()
+                 << " name=" << name;
     }
   }
 
@@ -226,6 +295,11 @@ void PpapiHost::HandleResourceCall(
     // CAUTION: Handling the message may cause the destruction of this object.
     resource_host->HandleMessage(nested_msg, context);
   } else {
+    // PPAPI revival 诊断：插件调用了没有宿主实现的 Flash 私有 API。
+    if (const char* name = FlashMsgNameOf(nested_msg.type())) {
+      LOG(ERROR) << "[ppexp] Flash resource host MISSING: type="
+                 << nested_msg.type() << " name=" << name;
+    }
     if (context->params.has_callback()) {
       ReplyMessageContext reply_context = context->MakeReplyMessageContext();
       reply_context.params.set_result(PP_ERROR_BADRESOURCE);
@@ -252,6 +326,11 @@ void PpapiHost::OnHostMsgResourceCreated(
       CreateResourceHost(params.pp_resource(), instance, nested_msg);
 
   if (!resource_host.get()) {
+    // PPAPI revival 诊断：插件请求了一个本构架里没有宿主的 Flash 资源。
+    if (const char* name = FlashMsgNameOf(nested_msg.type())) {
+      LOG(ERROR) << "[ppexp] Flash resource host creation FAILED: type="
+                 << nested_msg.type() << " name=" << name;
+    }
     DLOG(WARNING) << "Resource host creation failed.";
     return;
   }
