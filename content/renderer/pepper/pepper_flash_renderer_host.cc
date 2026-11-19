@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// SkTextBlobBuilder::RunBuffer exposes raw arrays that we must memcpy
+// glyph ids into; see OnDrawGlyphs().
+#ifdef UNSAFE_BUFFERS_BUILD
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/renderer/pepper/pepper_flash_renderer_host.h"
 
 #include <stddef.h>
@@ -16,6 +22,16 @@
 #include "ppapi/proxy/ppapi_messages.h"
 #include "ppapi/proxy/serialized_structs.h"
 #include "ppapi/shared_impl/url_request_info_data.h"
+#include "ppapi/thunk/enter.h"
+#include "ppapi/thunk/ppb_image_data_api.h"
+#include "skia/ext/font_utils.h"
+#include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkFont.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
+#include "third_party/skia/include/core/SkFontStyle.h"
+#include "third_party/skia/include/core/SkPaint.h"
+#include "third_party/skia/include/core/SkTextBlob.h"
+#include "third_party/skia/include/core/SkTypeface.h"
 #include "ui/gfx/geometry/rect.h"
 
 PepperFlashRendererHost::PepperFlashRendererHost(
@@ -42,6 +58,8 @@ int32_t PepperFlashRendererHost::OnResourceMessageReceived(
     PPAPI_DISPATCH_HOST_RESOURCE_CALL(PpapiHostMsg_Flash_SetInstanceAlwaysOnTop,
                                       OnSetInstanceAlwaysOnTop)
 
+    PPAPI_DISPATCH_HOST_RESOURCE_CALL(PpapiHostMsg_Flash_DrawGlyphs,
+                                     OnDrawGlyphs)
     PPAPI_DISPATCH_HOST_RESOURCE_CALL(PpapiHostMsg_Flash_Navigate, OnNavigate)
     PPAPI_DISPATCH_HOST_RESOURCE_CALL(PpapiHostMsg_Flash_IsRectTopmost,
                                       OnIsRectTopmost)
@@ -76,6 +94,106 @@ int32_t PepperFlashRendererHost::OnSetInstanceAlwaysOnTop(
   return PP_OK;
 }
 
+
+
+int32_t PepperFlashRendererHost::OnDrawGlyphs(
+    ppapi::host::HostMessageContext* host_context,
+    ppapi::proxy::PPBFlash_DrawGlyphs_Params params) {
+  if (params.glyph_indices.size() != params.glyph_advances.size() ||
+      params.glyph_indices.empty())
+    return PP_ERROR_FAILED;
+
+  int weight = (params.font_desc.weight + 1) * 100;
+  SkFontStyle::Slant slant = params.font_desc.italic
+                                 ? SkFontStyle::kItalic_Slant
+                                 : SkFontStyle::kUpright_Slant;
+  SkFontStyle style(weight, SkFontStyle::kNormal_Width, slant);
+  // Chromium 76 used SkTypeface::MakeFromName(); that factory is gone in the
+  // Skia shipped with M140, so go through the default font manager instead
+  // (same pattern as pepper_flash_font_file_host.cc).
+  sk_sp<SkFontMgr> font_mgr = skia::DefaultFontMgr();
+  if (!font_mgr)
+    return PP_ERROR_FAILED;
+  sk_sp<SkTypeface> typeface =
+      font_mgr->matchFamilyStyle(params.font_desc.face.c_str(), style);
+  if (!typeface)
+    return PP_ERROR_FAILED;
+
+  ppapi::thunk::EnterResourceNoLock<ppapi::thunk::PPB_ImageData_API> enter(
+      params.image_data.host_resource(), true);
+  if (enter.failed())
+    return PP_ERROR_FAILED;
+
+  ppapi::thunk::PPB_ImageData_API* image =
+      static_cast<ppapi::thunk::PPB_ImageData_API*>(enter.object());
+  SkCanvas* canvas = image->GetCanvas();
+  bool needs_unmapping = false;
+  if (!canvas) {
+    needs_unmapping = true;
+    image->Map();
+    canvas = image->GetCanvas();
+    if (!canvas)
+      return PP_ERROR_FAILED;  // Failure mapping.
+  }
+
+  SkAutoCanvasRestore acr(canvas, true);
+
+  // Clip is applied in pixels before the transform.
+  SkRect clip_rect = {static_cast<SkScalar>(params.clip.point.x),
+                      static_cast<SkScalar>(params.clip.point.y),
+                      static_cast<SkScalar>(params.clip.point.x +
+                                            params.clip.size.width),
+                      static_cast<SkScalar>(params.clip.point.y +
+                                            params.clip.size.height)};
+  canvas->clipRect(clip_rect);
+
+  SkMatrix matrix;
+  matrix.set(SkMatrix::kMScaleX, params.transformation[0][0]);
+  matrix.set(SkMatrix::kMSkewX, params.transformation[0][1]);
+  matrix.set(SkMatrix::kMTransX, params.transformation[0][2]);
+  matrix.set(SkMatrix::kMSkewY, params.transformation[1][0]);
+  matrix.set(SkMatrix::kMScaleY, params.transformation[1][1]);
+  matrix.set(SkMatrix::kMTransY, params.transformation[1][2]);
+  matrix.set(SkMatrix::kMPersp0, params.transformation[2][0]);
+  matrix.set(SkMatrix::kMPersp1, params.transformation[2][1]);
+  matrix.set(SkMatrix::kMPersp2, params.transformation[2][2]);
+  canvas->concat(matrix);
+
+  SkPaint paint;
+  paint.setColor(params.color);
+
+  SkFont font(std::move(typeface),
+              static_cast<SkScalar>(params.font_desc.size));
+  font.setHinting(SkFontHinting::kFull);
+  if (params.allow_subpixel_aa) {
+    font.setSubpixel(true);
+    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+  }
+
+  SkScalar x = static_cast<SkScalar>(params.position.x);
+  SkScalar y = static_cast<SkScalar>(params.position.y);
+
+  // Build up the skia advances.
+  size_t glyph_count = params.glyph_indices.size();
+  if (glyph_count) {
+    SkTextBlobBuilder builder;
+    const SkTextBlobBuilder::RunBuffer& rec =
+        builder.allocRunPos(font, static_cast<int>(glyph_count));
+    memcpy(rec.glyphs, params.glyph_indices.data(), glyph_count * 2);
+    SkPoint* pos = reinterpret_cast<SkPoint*>(rec.pos);
+    for (size_t i = 0; i < glyph_count; i++) {
+      pos[i].set(x, y);
+      x += static_cast<SkScalar>(params.glyph_advances[i].x);
+      y += static_cast<SkScalar>(params.glyph_advances[i].y);
+    }
+    canvas->drawTextBlob(builder.make(), 0, 0, paint);
+  }
+
+  if (needs_unmapping)
+    image->Unmap();
+
+  return PP_OK;
+}
 
 int32_t PepperFlashRendererHost::OnNavigate(
     ppapi::host::HostMessageContext* host_context,

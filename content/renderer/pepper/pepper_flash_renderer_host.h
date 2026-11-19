@@ -19,6 +19,13 @@
 #include "base/memory/weak_ptr.h"
 #include "ppapi/host/resource_host.h"
 
+namespace ppapi {
+namespace proxy {
+struct PPBFlash_DrawGlyphs_Params;
+}  // namespace proxy
+}  // namespace ppapi
+
+
 struct PP_Rect;
 
 namespace ppapi {
@@ -55,6 +62,14 @@ class PepperFlashRendererHost : public ppapi::host::ResourceHost {
   int32_t OnIsRectTopmost(ppapi::host::HostMessageContext* host_context,
                           const PP_Rect& rect);
   int32_t OnInvokePrinting(ppapi::host::HostMessageContext* host_context);
+
+  // PPAPI revival: PPB_Flash::DrawGlyphs. Ported from Chromium 76
+  // (chrome/renderer/pepper/pepper_flash_renderer_host.cc). Flash uses it to
+  // rasterize text into an ImageData with an arbitrary transform; without it
+  // Flash falls back to a slower path.
+  int32_t OnDrawGlyphs(
+      ppapi::host::HostMessageContext* host_context,
+      ppapi::proxy::PPBFlash_DrawGlyphs_Params params);
 
   // A stack of ReplyMessageContexts to track Navigate() calls which have not
   // yet been replied to.
