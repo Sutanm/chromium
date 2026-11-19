@@ -215,6 +215,18 @@ sandbox::mojom::Sandbox SandboxTypeFromCommandLine(
     return Sandbox::kGpu;
   }
 
+#if BUILDFLAG(ENABLE_PPAPI)
+  if (process_type == switches::kPpapiPluginProcess) {
+#if BUILDFLAG(IS_WIN)
+    // PPAPI sandboxing is not supported on Windows; the plugin process runs
+    // unsandboxed like it did before the PPAPI removal.
+    return Sandbox::kNoSandbox;
+#else
+    return Sandbox::kPpapi;
+#endif
+  }
+#endif
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Intermediate process gains a sandbox later.
   if (process_type == switches::kZygoteProcessType)
