@@ -3698,6 +3698,8 @@ source_set("browser") {
         "renderer_host/pepper/pepper_external_file_ref_backend.cc",
         "renderer_host/pepper/pepper_external_file_ref_backend.h",
         "renderer_host/pepper/pepper_file_io_host.cc",
+    "renderer_host/pepper/pepper_flash_clipboard_host.cc",
+    "renderer_host/pepper/pepper_flash_clipboard_host.h",
         "renderer_host/pepper/pepper_file_io_host.h",
         "renderer_host/pepper/pepper_file_ref_host.cc",
         "renderer_host/pepper/pepper_file_ref_host.h",

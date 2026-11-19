@@ -13,6 +13,7 @@
 #include "content/browser/renderer_host/pepper/pepper_file_ref_host.h"
 #include "content/browser/renderer_host/pepper/pepper_file_system_browser_host.h"
 #include "content/browser/renderer_host/pepper/pepper_flash_browser_host.h"
+#include "content/browser/renderer_host/pepper/pepper_flash_clipboard_host.h"
 #include "content/browser/renderer_host/pepper/pepper_flash_file_message_filter.h"
 #include "content/browser/renderer_host/pepper/pepper_gamepad_host.h"
 #include "content/browser/renderer_host/pepper/pepper_host_resolver_message_filter.h"
@@ -218,6 +219,13 @@ ContentBrowserPepperHostFactory::CreateResourceHost(
   if (message.type() == PpapiHostMsg_Flash_Create::ID) {
     return std::unique_ptr<ppapi::host::ResourceHost>(
         new PepperFlashBrowserHost(host_, instance, resource));
+  }
+  // PPAPI revival: Flash-private PPB_Flash_Clipboard. Chromium 138/140 ship
+  // only the plugin side of this interface, so pasted/copied data never
+  // reached the system clipboard. See pepper_flash_clipboard_host.h.
+  if (message.type() == PpapiHostMsg_FlashClipboard_Create::ID) {
+    return std::unique_ptr<ppapi::host::ResourceHost>(
+        new PepperFlashClipboardHost(host_, instance, resource));
   }
   if (message.type() == PpapiHostMsg_FlashFile_Create::ID) {
     scoped_refptr<ppapi::host::ResourceMessageFilter> flash_file_filter(
