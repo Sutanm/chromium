@@ -23,6 +23,7 @@
 #include "content/renderer/pepper/pepper_file_system_host.h"
 #include "content/renderer/pepper/pepper_flash_font_file_host.h"
 #include "content/renderer/pepper/pepper_flash_fullscreen_host.h"
+#include "content/renderer/pepper/pepper_flash_menu_host.h"
 #include "content/renderer/pepper/pepper_flash_renderer_host.h"
 #include "content/renderer/pepper/pepper_graphics_2d_host.h"
 #include "content/renderer/pepper/pepper_media_stream_video_track_host.h"
@@ -176,6 +177,19 @@ ContentRendererPepperHostFactory::CreateResourceHost(
     std::unique_ptr<PepperCameraDeviceHost> camera_host(
         new PepperCameraDeviceHost(host_, instance, resource));
     return camera_host->Init() ? std::move(camera_host) : nullptr;
+  }
+
+  // PPAPI revival: Flash-private PPB_Flash_Menu. AS3 ContextMenu is drawn by
+  // Flash itself, but SiteLock/DRM-wrapped content (e.g. drmsoft.cn) really
+  // does call FlashMenu_Create/Show -- see pepper_flash_menu_host.h.
+  if (message.type() == PpapiHostMsg_FlashMenu_Create::ID) {
+    ppapi::proxy::SerializedFlashMenu menu_data;
+    if (!ppapi::UnpackMessage<PpapiHostMsg_FlashMenu_Create>(message,
+                                                             &menu_data)) {
+      return nullptr;
+    }
+    return std::unique_ptr<ppapi::host::ResourceHost>(
+        new PepperFlashMenuHost(host_, instance, resource, menu_data));
   }
 
   // PPAPI revival: Flash-private fullscreen API (PPB_Flash_Fullscreen).
