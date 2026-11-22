@@ -74,7 +74,13 @@ const base::FeatureParam<std::string> kExtensionManifestV2ExceptionListParam(
     /*name=*/"mv2_exception_list",
     /*default_value=*/"");
 
-BASE_FEATURE(kAllowLegacyMV2Extensions, base::FEATURE_DISABLED_BY_DEFAULT);
+// PPAPI/产品需求：默认允许 MV2 扩展。
+// 上游把 MV2 的"逃生开关"默认关闭（配合 kExtensionManifestV2Disabled /
+// kExtensionManifestV2Unsupported 一起把 MV2 判为不可用），而本产品必须能加载
+// MV2 扩展。这里改成默认开启：manifest_v2_experiment_manager.cc 的两处判定
+// （ShouldBlockUnpackedExtensions / unpacked_extensions_are_exempt）都会因此豁免 MV2。
+// 仍可用 --disable-features=AllowLegacyMV2Extensions 临时关掉。
+BASE_FEATURE(kAllowLegacyMV2Extensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionProtocolHandlers, base::FEATURE_DISABLED_BY_DEFAULT);
 
