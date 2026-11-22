@@ -56,7 +56,8 @@ bool IsAllowedFromCommandLine(const ContentPluginInfo& plugin) {
 }
 
 // Appends any plugins from the command line to the given vector.
-void ComputePluginsFromCommandLine(std::vector<ContentPluginInfo>* plugins) {
+void ComputePluginsFromCommandLine(std::vector<ContentPluginInfo>* plugins,
+                                   bool check_file_exists) {
   // On Linux, once we're sandboxed, we can't know if a plugin is available or
   // not. But (on Linux) this function is always called once before we're
   // sandboxed. So when this function is called for the first time we set a
@@ -114,7 +115,7 @@ void ComputePluginsFromCommandLine(std::vector<ContentPluginInfo>* plugins) {
     plugin.path = base::FilePath::FromUTF8Unsafe(name_parts[0]);
 
     uint64_t index_mask = 1ULL << i;
-    if (!(skip_file_check_flags & index_mask)) {
+    if (check_file_exists && !(skip_file_check_flags & index_mask)) {
       if (base::PathExists(plugin.path)) {
         skip_file_check_flags |= index_mask;
       } else {
@@ -176,14 +177,15 @@ bool MakePepperPluginInfo(const WebPluginInfo& webplugin_info,
   return true;
 }
 
-void ComputePepperPluginList(std::vector<ContentPluginInfo>* plugins) {
+void ComputePepperPluginList(std::vector<ContentPluginInfo>* plugins,
+                             bool check_file_exists) {
   GetContentClient()->AddPlugins(plugins);
   // It would be nice to gate this behind a field trial but this happens too
   // early in the startup process. We allow loading from command line for
   // testing but don't allow for general use cases.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kAllowCommandLinePlugins)) {
-    ComputePluginsFromCommandLine(plugins);
+    ComputePluginsFromCommandLine(plugins, check_file_exists);
   }
 }
 

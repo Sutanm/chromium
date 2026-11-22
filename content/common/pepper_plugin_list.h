@@ -25,7 +25,15 @@ bool MakePepperPluginInfo(const WebPluginInfo& webplugin_info,
                           ContentPluginInfo* pepper_info);
 
 // Computes the list of known pepper plugins.
-void ComputePepperPluginList(std::vector<ContentPluginInfo>* plugins);
+//
+// PPAPI revival (BaoFlashBrowser Next): `check_file_exists` must be false in
+// sandboxed processes. The command-line plugin path is a file outside the
+// renderer sandbox's read allowlist on Windows, so `base::PathExists()` fails
+// there and the plugin would be dropped silently. The browser process already
+// validated the path when it parsed the switch, so the renderer only needs the
+// metadata.
+void ComputePepperPluginList(std::vector<ContentPluginInfo>* plugins,
+                             bool check_file_exists = true);
 
 }  // namespace content
 

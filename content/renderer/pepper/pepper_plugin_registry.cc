@@ -119,7 +119,11 @@ PepperPluginRegistry::~PepperPluginRegistry() {
 PepperPluginRegistry::PepperPluginRegistry() {}
 
 void PepperPluginRegistry::Initialize() {
-  ComputePepperPluginList(&plugin_list_);
+  // PPAPI revival (BaoFlashBrowser Next): the renderer is sandboxed on Windows,
+  // so it cannot stat the command-line plugin DLL. The browser already
+  // validated the path; skip the redundant check here or the plugin is dropped
+  // and <embed> silently falls back to a generic element.
+  ComputePepperPluginList(&plugin_list_, /*check_file_exists=*/false);
 
   // Note that in each case, AddLiveModule must be called before completing
   // initialization. If we bail out (in the continue clauses) before saving
