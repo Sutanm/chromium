@@ -225,6 +225,9 @@ class FileSystemBackend;
 }  // namespace storage
 
 namespace content {
+
+class BrowserPpapiHost;
+struct SocketPermissionRequest;
 enum class SiteIsolationMode;
 enum class SmsFetchFailureType;
 class AnchorElementPreconnectDelegate;
@@ -299,7 +302,26 @@ class TtsControllerDelegate;
 // that either already has a hook out to the embedder, or calls out to one of
 // the observer interfaces.)
 class CONTENT_EXPORT ContentBrowserClient {
+
  public:
+
+  // PPAPI revival: pepper hooks removed in M140+.
+  virtual void DidCreatePpapiPlugin(BrowserPpapiHost* browser_host) {}
+
+  virtual BrowserPpapiHost* GetExternalBrowserPpapiHost(int render_process_id);
+
+  virtual bool AllowPepperSocketAPI(BrowserContext* browser_context,
+                                    const GURL& url,
+                                    bool private_api,
+                                    const SocketPermissionRequest* params);
+
+  virtual bool IsPluginAllowedToCallRequestOSFileHandle(
+      BrowserContext* browser_context,
+      const GURL& url);
+
+  virtual bool IsPluginAllowedToUseDevChannelAPIs(
+      BrowserContext* browser_context,
+      const GURL& url);
   // Callback used with the `IsClipboardPasteAllowedByPolicy()` method.  If the
   // paste is not allowed, nullopt is passed to the callback.  Otherwise, the
   // data that should be pasted is passed in.

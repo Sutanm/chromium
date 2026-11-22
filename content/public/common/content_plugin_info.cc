@@ -10,6 +10,10 @@
 
 namespace content {
 
+#if BUILDFLAG(ENABLE_PPAPI)
+ContentPluginInfo::EntryPoints::EntryPoints() = default;
+#endif  // BUILDFLAG(ENABLE_PPAPI)
+
 ContentPluginInfo::ContentPluginInfo() = default;
 ContentPluginInfo::ContentPluginInfo(const ContentPluginInfo& other) = default;
 ContentPluginInfo::ContentPluginInfo(ContentPluginInfo&& other) noexcept =
@@ -19,8 +23,14 @@ ContentPluginInfo::~ContentPluginInfo() = default;
 WebPluginInfo ContentPluginInfo::ToWebPluginInfo() const {
   WebPluginInfo info;
 
-  info.type = is_internal ? WebPluginInfo::PLUGIN_TYPE_BROWSER_INTERNAL_PLUGIN
-                          : WebPluginInfo::PLUGIN_TYPE_BROWSER_PLUGIN;
+  if (is_internal) {
+    info.type = WebPluginInfo::PLUGIN_TYPE_BROWSER_INTERNAL_PLUGIN;
+  } else {
+    info.type = is_out_of_process
+                    ? WebPluginInfo::PLUGIN_TYPE_PEPPER_OUT_OF_PROCESS
+                    : WebPluginInfo::PLUGIN_TYPE_PEPPER_IN_PROCESS;
+  }
+  info.pepper_permissions = static_cast<int32_t>(permissions);
 
   info.name = name.empty() ? path.BaseName().LossyDisplayName()
                            : base::UTF8ToUTF16(name);

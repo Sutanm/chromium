@@ -58,6 +58,12 @@ class MockGLES2Decoder : public GLES2Decoder {
   MOCK_METHOD0(MakeCurrent, bool());
   MOCK_METHOD1(GetServiceIdForTesting, uint32_t(uint32_t client_id));
   MOCK_METHOD0(GetGLES2Util, GLES2Util*());
+  MOCK_METHOD5(SetDefaultFramebufferSharedImage,
+               void(const Mailbox& mailbox,
+                    int samples,
+                    bool preserve,
+                    bool needs_depth,
+                    bool needs_stencil));
   MOCK_METHOD0(GetGLSurface, gl::GLSurface*());
   MOCK_METHOD0(GetGLContext, gl::GLContext*());
   MOCK_METHOD0(GetContextGroup, ContextGroup*());

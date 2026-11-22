@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ipc/ipc_message_pipe_reader.h"
 
 #include <stdint.h>
@@ -106,7 +111,43 @@ void MessagePipeReader::Close() {
 }
 
 bool MessagePipeReader::Send(std::unique_ptr<Message> message) {
-  return false;
+  // PPAPI revival: Chromium 142 stubbed this out (legacy IPC became
+  // receive-only). The PPAPI proxy still needs to send messages, so the
+  // original serialization is restored here.
+  if (!message || !message->IsValid()) {
+    return false;
+  }
+  std::optional<std::vector<mojo::native::SerializedHandlePtr>> handles;
+  if (ChannelMojo::ReadFromMessageAttachmentSet(message.get(), &handles) !=
+      MOJO_RESULT_OK) {
+    return false;
+  }
+  if (!sender_.is_bound()) {
+    return false;
+  }
+  base::span<const uint8_t> bytes(
+      static_cast<const uint8_t*>(message->data()), message->size());
+  sender_->Receive(MessageView(bytes, std::move(handles)));
+  return true;
+}
+
+void MessagePipeReader::Receive(MessageView message_view) {
+  if (message_view.bytes().empty()) {
+    delegate_->OnBrokenDataReceived();
+    return;
+  }
+  Message message(reinterpret_cast<const char*>(message_view.bytes().data()),
+                  message_view.bytes().size());
+  if (!message.IsValid()) {
+    delegate_->OnBrokenDataReceived();
+    return;
+  }
+  if (ChannelMojo::WriteToMessageAttachmentSet(message_view.TakeHandles(),
+                                              &message) != MOJO_RESULT_OK) {
+    OnPipeError(MOJO_RESULT_UNKNOWN);
+    return;
+  }
+  delegate_->OnMessageReceived(message);
 }
 
 void MessagePipeReader::GetRemoteInterface(

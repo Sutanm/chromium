@@ -17,6 +17,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/child_process_id.h"
 #include "content/public/common/content_constants.h"
+#include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 
 namespace base {
@@ -136,6 +137,9 @@ class CONTENT_EXPORT ChildProcessHost {
   // Always valid immediately after ChildProcessHost construction, but may be
   // null if someone else has taken ownership.
   virtual std::optional<mojo::OutgoingInvitation>& GetMojoInvitation() = 0;
+
+  // PPAPI revival: send a legacy IPC message to the child process.
+  virtual bool Send(IPC::Message* message) = 0;
 
   // Creates a legacy IPC channel over a Mojo message pipe. Must be called if
   // legacy IPC will be used to communicate with the child process, but

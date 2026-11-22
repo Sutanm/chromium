@@ -133,6 +133,12 @@ class CONTENT_EXPORT ContentRendererClient {
 
   // Returns true if the embedder renders the contents of the |plugin_element|,
   // using external handlers, in a cross-process frame.
+  // PPAPI revival: pepper camera access gate.
+  virtual bool IsPluginAllowedToUseCameraDeviceAPI(const GURL& url);
+
+  // PPAPI revival: whether an external (out-of-process) pepper plugin is used.
+  virtual bool IsExternalPepperPlugin(const std::string& module_name);
+
   virtual bool IsPluginHandledExternally(
       RenderFrame* embedder_frame,
       const blink::WebElement& plugin_element,

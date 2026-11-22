@@ -39,6 +39,9 @@
 #include "base/pending_task.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/process_handle.h"
+#include "base/environment.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/scoped_clear_last_error.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -732,6 +735,29 @@ void LogMessage::Flush() {
   stream_ << std::endl;
   std::string str_newline(stream_.str());
   TraceLogMessage(file_, line_, str_newline.substr(message_start_));
+
+  // Debug aid, off unless FLASH_TRACE_DIR is set: child-process stderr does not
+  // reach the parent on Windows, so a FATAL in the renderer/GPU/plugin process is
+  // invisible. Mirrors the record into the trace directory so a crash's
+  // file:line can be read after the fact. Not a shipping path: with the env var
+  // unset this is one getenv-free branch on a cached value.
+  if (severity_ == LOGGING_FATAL) {
+    // Leaked on purpose: a static std::string here would trip
+    // -Wexit-time-destructors (an error in this build).
+    static const std::string* const trace_dir = []() -> const std::string* {
+      std::string value;
+      if (auto env = base::Environment::Create())
+        value = env->GetVar("FLASH_TRACE_DIR").value_or("");
+      return new std::string(std::move(value));
+    }();
+    if (!trace_dir->empty()) {
+      base::AppendToFile(
+          base::FilePath::FromUTF8Unsafe(*trace_dir)
+              .AppendASCII(base::StringPrintf("fatal-%u.log",
+                                              base::GetCurrentProcId())),
+          base::as_byte_span(str_newline));
+    }
+  }
 
   // FATAL messages should always run the assert handler and crash, even if a
   // message handler marks them as otherwise handled.

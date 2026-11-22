@@ -4,7 +4,20 @@
 
 #include "content/renderer/render_frame_impl.h"
 
+#include "content/renderer/pepper/pepper_browser_connection.h"
+#include "content/renderer/pepper/pepper_plugin_instance_impl.h"
+
+#include "ppapi/buildflags/buildflags.h"
+
+#if BUILDFLAG(ENABLE_PPAPI)
+#include "content/public/common/content_plugin_info.h"
+#include "content/renderer/pepper/pepper_plugin_registry.h"
+#include "content/renderer/pepper/pepper_webplugin_impl.h"
+#include "content/renderer/pepper/plugin_module.h"
+#endif  // BUILDFLAG(ENABLE_PPAPI)
+
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -33,6 +46,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/no_destructor.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
@@ -302,6 +316,10 @@ using blink::mojom::SelectionMenuBehavior;
 using network::mojom::ReferrerPolicy;
 
 namespace content {
+
+namespace {
+base::NoDestructor<std::map<int, RenderFrameImpl*>> g_routing_id_frame_map;
+}  // namespace
 
 namespace {
 
@@ -1899,6 +1917,11 @@ RenderFrameImpl::RenderFrameImpl(CreateParams params)
       unique_name_helper_(&unique_name_frame_adapter_),
       in_frame_tree_(false),
       frame_token_(params.frame_token),
+      // 【移植】140 删掉 PPAPI 时把 pepper_routing_id_ 的赋值一起删了，默认 -1 会让
+      // RenderFrame::GetRoutingID() 返回 -1 —— 插件进程拿到的 render_frame_id 也就是 -1，
+      // 于是 RenderFrameHost::FromID(pid, -1) 为 null，Flash 的 Socket 连接永远失败
+      // （ppapi PepperTCPSocketMessageFilter::OnMsgConnect 直接返回 PP_ERROR_FAILED）。
+      pepper_routing_id_(params.routing_id),
       process_label_id_(
           tracing::TrackNameRecorder::GetInstance()->GetNewProcessLabelId()),
       selection_text_offset_(0),
@@ -1914,6 +1937,8 @@ RenderFrameImpl::RenderFrameImpl(CreateParams params)
                               base::Unretained(this))),
       devtools_frame_token_(params.devtools_frame_token),
       is_for_nested_main_frame_(params.is_for_nested_main_frame) {
+  g_routing_id_frame_map->emplace(pepper_routing_id_, this);
+
   TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::RenderFrameImpl",
                          TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_OUT);
   DCHECK(RenderThread::IsMainThread());
@@ -1943,6 +1968,7 @@ mojom::FrameHost* RenderFrameImpl::GetFrameHost() {
 }
 
 RenderFrameImpl::~RenderFrameImpl() {
+  g_routing_id_frame_map->erase(pepper_routing_id_);
   TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::~RenderFrameImpl",
                          TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_IN);
   for (auto& observer : observers_)
@@ -1968,6 +1994,12 @@ void RenderFrameImpl::Initialize(blink::WebFrame* parent) {
 
   TRACE_EVENT1("navigation,rail", "RenderFrameImpl::Initialize", "frame_token",
                frame_token_);
+
+#if BUILDFLAG(ENABLE_PPAPI)
+  // PPAPI revival: the browser connection object must exist before any pepper
+  // plugin is created (Chromium 138 created it here).
+  new PepperBrowserConnection(this);
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 
   RegisterMojoInterfaces();
 
@@ -3387,6 +3419,25 @@ blink::WebPlugin* RenderFrameImpl::CreatePlugin(
                                                            &plugin)) {
     return plugin;
   }
+
+#if BUILDFLAG(ENABLE_PPAPI)
+  // PPAPI revival: Blink 140 removed the WebPluginInfo argument, so resolve the
+  // plugin from the MIME type through the (revived) pepper plugin registry.
+  const std::string mime_type = params.mime_type.Utf8();
+  const ContentPluginInfo* info =
+      PepperPluginRegistry::GetInstance()->GetInfoForMimeType(mime_type);
+  if (info) {
+    bool pepper_plugin_was_registered = false;
+    scoped_refptr<PluginModule> pepper_module(PluginModule::Create(
+        this, info->ToWebPluginInfo(), std::nullopt,
+        &pepper_plugin_was_registered,
+        GetTaskRunner(blink::TaskType::kNetworking)));
+    if (pepper_plugin_was_registered && pepper_module.get()) {
+      return new PepperWebPluginImpl(pepper_module.get(), params, this);
+    }
+    LOG(WARNING) << "Pepper module/plugin creation failed for " << mime_type;
+  }
+#endif  // BUILDFLAG(ENABLE_PPAPI)
   return nullptr;
 }
 
@@ -7000,4 +7051,97 @@ void RenderFrameImpl::ResetMembersUsedForDurationOfCommit() {
   is_requesting_navigation_ = false;
 }
 
+
+// ---------------------------------------------------------------------------
+// PPAPI revival: pepper integration hooks removed in M140+.
+// ---------------------------------------------------------------------------
+
+int RenderFrameImpl::GetRoutingID() {
+  return pepper_routing_id_;
+}
+
+// static
+void RenderFrameImpl::PepperPluginCreated(RendererPpapiHost* host) {
+  for (auto& observer : observers_)
+    observer.DidCreatePepperPlugin(host);
+}
+RenderFrameImpl* RenderFrameImpl::FromRoutingId(int routing_id) {
+  auto iter = g_routing_id_frame_map->find(routing_id);
+  if (iter != g_routing_id_frame_map->end())
+    return iter->second;
+  return nullptr;
+}
+
+mojom::PepperHost* RenderFrameImpl::GetPepperHost() {
+  if (!pepper_host_remote_.is_bound()) {
+    // The provider may already have been created earlier (the pending remote is
+    // consumed on first use), so only fail when neither exists.
+    if (!remote_associated_interfaces_ &&
+        !pending_associated_interface_provider_remote_) {
+      return nullptr;
+    }
+    GetRemoteAssociatedInterfaces()->GetInterface(&pepper_host_remote_);
+  }
+  return pepper_host_remote_.get();
+}
+
+void RenderFrameImpl::PepperInstanceCreated(
+    PepperPluginInstanceImpl* instance,
+    mojo::PendingAssociatedRemote<mojom::PepperPluginInstance> mojo_instance,
+    mojo::PendingAssociatedReceiver<mojom::PepperPluginInstanceHost>
+        mojo_host) {
+  active_pepper_instances_.insert(instance);
+  GetPepperHost()->InstanceCreated(instance->pp_instance(),
+                                   std::move(mojo_instance),
+                                   std::move(mojo_host));
+}
+
+void RenderFrameImpl::PepperInstanceDeleted(PepperPluginInstanceImpl* instance) {
+  active_pepper_instances_.erase(instance);
+  if (focused_pepper_plugin_ == instance)
+    PepperFocusChanged(instance, false);
+}
+
+void RenderFrameImpl::PepperFocusChanged(PepperPluginInstanceImpl* instance,
+                                         bool focused) {
+  if (focused)
+    focused_pepper_plugin_ = instance;
+  else if (focused_pepper_plugin_ == instance)
+    focused_pepper_plugin_ = nullptr;
+
+  if (auto* widget = GetLocalRootWebFrameWidget()) {
+    widget->UpdateTextInputState();
+    widget->UpdateSelectionBounds();
+  }
+}
+
+void RenderFrameImpl::PepperTextInputTypeChanged(
+    PepperPluginInstanceImpl* instance) {
+  if (instance != focused_pepper_plugin_)
+    return;
+  if (auto* widget = GetLocalRootWebFrameWidget())
+    widget->UpdateTextInputState();
+}
+
+void RenderFrameImpl::PepperSelectionChanged(
+    PepperPluginInstanceImpl* instance) {
+  if (instance != focused_pepper_plugin_)
+    return;
+  SyncSelectionIfRequired(blink::SyncCondition::kNotForced);
+}
+
+void RenderFrameImpl::PepperCaretPositionChanged(
+    PepperPluginInstanceImpl* instance) {
+  if (instance != focused_pepper_plugin_)
+    return;
+  if (auto* widget = GetLocalRootWebFrameWidget())
+    widget->UpdateSelectionBounds();
+}
+
+void RenderFrameImpl::PepperCancelComposition(
+    PepperPluginInstanceImpl* instance) {
+  // Chromium 140 removed CancelCompositionForPepper; the text input state is
+  // refreshed on the next focus/selection event instead.
+  (void)instance;
+}
 }  // namespace content

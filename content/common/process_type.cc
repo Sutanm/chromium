@@ -25,6 +25,10 @@ std::string GetProcessTypeNameInEnglish(int type) {
       return "Sandbox helper";
     case PROCESS_TYPE_GPU:
       return "GPU";
+    case PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+      return "Pepper Plugin";
+    case PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      return "Pepper Plugin Broker";
     case PROCESS_TYPE_UNKNOWN:
       DCHECK(false) << "Unknown child process type!";
       return "Unknown";

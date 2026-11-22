@@ -176,6 +176,15 @@ void CommandBufferStub::ExecuteDeferredRequest(
     case mojom::DeferredCommandBufferRequestParams::Tag::kDestroyTransferBuffer:
       OnDestroyTransferBuffer(params.get_destroy_transfer_buffer());
       break;
+
+    case mojom::DeferredCommandBufferRequestParams::Tag::
+        kSetDefaultFramebufferSharedImage: {
+      auto& attach = *params.get_set_default_framebuffer_shared_image();
+      OnSetDefaultFramebufferSharedImage(attach.mailbox, attach.samples_count,
+                                         attach.preserve, attach.needs_depth,
+                                         attach.needs_stencil);
+      break;
+    }
   }
 
   if (!context_label_.empty()) {

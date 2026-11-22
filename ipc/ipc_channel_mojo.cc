@@ -267,4 +267,53 @@ void ChannelMojo::SetUrgentMessageObserver(UrgentMessageObserver* observer) {
   bootstrap_->SetUrgentMessageObserver(observer);
 }
 
+// static
+MojoResult ChannelMojo::ReadFromMessageAttachmentSet(
+    Message* message,
+    std::optional<std::vector<mojo::native::SerializedHandlePtr>>* handles) {
+  DCHECK(!*handles);
+  if (!message->HasAttachments()) {
+    return MOJO_RESULT_OK;
+  }
+  std::vector<mojo::native::SerializedHandlePtr> output_handles;
+  MessageAttachmentSet* set = message->attachment_set();
+  for (unsigned i = 0; i < set->size(); ++i) {
+    auto attachment = set->GetAttachmentAt(i);
+    auto serialized_handle = mojo::native::SerializedHandle::New();
+    serialized_handle->the_handle = attachment->TakeMojoHandle();
+    serialized_handle->type =
+        static_cast<mojo::native::SerializedHandleType>(
+            attachment->GetType());
+    output_handles.emplace_back(std::move(serialized_handle));
+  }
+  set->CommitAllDescriptors();
+  if (!output_handles.empty()) {
+    *handles = std::move(output_handles);
+  }
+  return MOJO_RESULT_OK;
+}
+
+// static
+MojoResult ChannelMojo::WriteToMessageAttachmentSet(
+    std::optional<std::vector<mojo::native::SerializedHandlePtr>> handles,
+    Message* message) {
+  if (!handles) {
+    return MOJO_RESULT_OK;
+  }
+  for (auto& handle : *handles) {
+    scoped_refptr<MessageAttachment> unwrapped_attachment =
+        MessageAttachment::CreateFromMojoHandle(
+            std::move(handle->the_handle),
+            static_cast<MessageAttachment::Type>(handle->type));
+    if (!unwrapped_attachment) {
+      return MOJO_RESULT_UNKNOWN;
+    }
+    if (!message->attachment_set()->AddAttachment(
+            std::move(unwrapped_attachment))) {
+      return MOJO_RESULT_UNKNOWN;
+    }
+  }
+  return MOJO_RESULT_OK;
+}
+
 }  // namespace IPC

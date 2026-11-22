@@ -104,6 +104,7 @@ class COMPONENT_EXPORT(IPC) MessagePipeReader : public mojom::Channel {
  private:
   // mojom::Channel:
   void SetPeerPid(int32_t peer_pid) override;
+  void Receive(MessageView message) override;
   void GetAssociatedInterface(
       mojo::GenericPendingAssociatedReceiver receiver) override;
 

@@ -20,6 +20,7 @@ $../../
 -chromeos/assistant/internal
 -components/optimization_guide/internal/
 -ios/third_party/
+-ppapi/  # Vendored PPAPI revival sources (legacy buffer arithmetic).
 -net/third_party/
 -services/shape_detection/internal/barhopper/
 -testing/iossim/

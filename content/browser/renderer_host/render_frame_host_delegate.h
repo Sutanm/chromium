@@ -719,6 +719,22 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // doesn't return nullptr except for some tests.
   virtual PrerenderHostRegistry* GetPrerenderHostRegistry();
 
+  // PPAPI revival: pepper hooks removed in M140+.
+  virtual void OnPepperInstanceCreated(RenderFrameHostImpl* source,
+                                       int32_t pp_instance) {}
+  virtual void OnPepperInstanceDeleted(RenderFrameHostImpl* source,
+                                       int32_t pp_instance) {}
+  virtual void OnPepperStartsPlayback(RenderFrameHostImpl* source,
+                                      int32_t pp_instance) {}
+  virtual void OnPepperStopsPlayback(RenderFrameHostImpl* source,
+                                     int32_t pp_instance) {}
+  virtual void OnPepperPluginCrashed(RenderFrameHostImpl* source,
+                                     const base::FilePath& plugin_path,
+                                     base::ProcessId plugin_pid) {}
+  virtual void OnPepperPluginHung(RenderFrameHostImpl* source,
+                                  int plugin_child_id,
+                                  const base::FilePath& path,
+                                  bool is_hung) {}
   // The load progress for the main frame was changed.
   virtual void DidChangeLoadProgressForMainFrame(RenderFrameHostImpl* source) {}
 

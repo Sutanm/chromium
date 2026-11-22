@@ -33,6 +33,8 @@ class SyncHandleRegistry;
 
 namespace IPC {
 
+class SyncMessageFilter;
+
 class SyncMessage;
 
 // This is similar to ChannelProxy, with the added feature of supporting sending
@@ -105,6 +107,9 @@ class COMPONENT_EXPORT(IPC) SyncChannel : public ChannelProxy {
 
   bool Send(Message* message) override;
 
+
+  // PPAPI revival: upstream removed this helper.
+  scoped_refptr<IPC::SyncMessageFilter> CreateSyncMessageFilter();
 
  protected:
   friend class ReceivedSyncMsgQueue;

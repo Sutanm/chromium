@@ -436,6 +436,319 @@
 #define IPC_SYNC_MESSAGE_CONTROL5_4(msg, a, b, c, d, e, f, g, h, i) \
   IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g, h, i))
 
+#define IPC_MESSAGE_ROUTED(msg_class, ...) \
+  IPC_MESSAGE_DECL(msg_class, ROUTED, IPC_TUPLE(__VA_ARGS__), void)
+
+// Synchronous messages have both in and out parameters, so the lists need to
+// be parenthesized to disambiguate:
+//      IPC_SYNC_MESSAGE_CONTROL(BarMsg, (int, int), (bool))
+//
+// Implementation detail: The parentheses supplied by the caller for
+// disambiguation are also used to trigger the IPC_TUPLE invocations below,
+// so "IPC_TUPLE in" and "IPC_TUPLE out" are intentional.
+#define IPC_SYNC_MESSAGE_CONTROL(msg_class, in, out) \
+  IPC_MESSAGE_DECL(msg_class, CONTROL, IPC_TUPLE in, IPC_TUPLE out)
+#define IPC_SYNC_MESSAGE_ROUTED(msg_class, in, out) \
+  IPC_MESSAGE_DECL(msg_class, ROUTED, IPC_TUPLE in, IPC_TUPLE out)
+
+#define IPC_TUPLE(...) IPC::CheckedTuple<__VA_ARGS__>::Tuple
+
+#define IPC_MESSAGE_DECL(msg_name, kind, in_tuple, out_tuple)       \
+  struct IPC_MESSAGE_EXPORT msg_name##_Meta {                       \
+    using InTuple = in_tuple;                                       \
+    using OutTuple = out_tuple;                                     \
+    enum { ID = IPC_MESSAGE_ID() };                                 \
+    static const IPC::MessageKind kKind = IPC::MessageKind::kind;   \
+    static const char kName[];                                      \
+  };                                                                \
+  extern template class EXPORT_TEMPLATE_DECLARE(IPC_MESSAGE_EXPORT) \
+      IPC::MessageT<msg_name##_Meta>;                               \
+  using msg_name = IPC::MessageT<msg_name##_Meta>;                  \
+  IPC_MESSAGE_EXTRA(msg_name)
+
+#if defined(IPC_MESSAGE_IMPL)
+
+// "Implementation" inclusion provides the explicit template definition
+// for msg_name.
+#define IPC_MESSAGE_EXTRA(msg_name)                         \
+  const char msg_name##_Meta::kName[] = #msg_name;          \
+  IPC_MESSAGE_DEFINE_KIND(msg_name)                         \
+  template class EXPORT_TEMPLATE_DEFINE(IPC_MESSAGE_EXPORT) \
+      IPC::MessageT<msg_name##_Meta>;
+
+#define IPC_MESSAGE_DEFINE_KIND(msg_name) \
+  const IPC::MessageKind msg_name##_Meta::kKind;
+
+#elif defined(IPC_MESSAGE_MACROS_LOG_ENABLED)
+
+#ifndef IPC_LOG_TABLE_ADD_ENTRY
+#error You need to define IPC_LOG_TABLE_ADD_ENTRY(msg_id, logger)
+#endif
+
+// "Log table" inclusion produces extra logging registration code.
+#define IPC_MESSAGE_EXTRA(msg_name)                                \
+  class LoggerRegisterHelper##msg_name {                           \
+   public:                                                         \
+    LoggerRegisterHelper##msg_name() {                             \
+      const uint32_t msg_id = static_cast<uint32_t>(msg_name::ID); \
+      IPC_LOG_TABLE_ADD_ENTRY(msg_id, msg_name::Log);              \
+    }                                                              \
+  };                                                               \
+  LoggerRegisterHelper##msg_name g_LoggerRegisterHelper##msg_name;
+
+#else
+
+// Normal inclusion produces nothing extra.
+#define IPC_MESSAGE_EXTRA(msg_name)
+
+#endif  // defined(IPC_MESSAGE_IMPL)
+
+// Message IDs
+// Note: we currently use __LINE__ to give unique IDs to messages within
+// a file.  They're globally unique since each file defines its own
+// IPC_MESSAGE_START.
+#define IPC_MESSAGE_ID() ((IPC_MESSAGE_START << 16) + __LINE__)
+#define IPC_MESSAGE_ID_CLASS(id) ((id) >> 16)
+#define IPC_MESSAGE_ID_LINE(id) ((id) & 0xffff)
+
+// Message crackers and handlers. Usage:
+//
+//   bool MyClass::OnMessageReceived(const IPC::Message& msg) {
+//     bool handled = true;
+//     IPC_BEGIN_MESSAGE_MAP(MyClass, msg)
+//       IPC_MESSAGE_HANDLER(MsgClassOne, OnMsgClassOne)
+//       ...more handlers here ...
+//       IPC_MESSAGE_HANDLER(MsgClassTen, OnMsgClassTen)
+//       IPC_MESSAGE_UNHANDLED(handled = false)
+//     IPC_END_MESSAGE_MAP()
+//     return handled;
+//   }
+
+#define IPC_TASK_ANNOTATOR_STRINGIFY(s) #s
+
+// A macro to be used from within the IPC_MESSAGE_FORWARD macros, for providing
+// the IPC message context to the TaskAnnotator. This allows posted tasks to be
+// associated with the incoming IPC message that caused them to be posted.
+#define IPC_TASK_ANNOTATOR_CONTEXT(msg_class)                            \
+  static constexpr uint32_t kMessageHash =                               \
+      ipc::GetLegacyIpcTraceId(IPC_TASK_ANNOTATOR_STRINGIFY(msg_class)); \
+  base::TaskAnnotator::ScopedSetIpcHash scoped_ipc_hash(kMessageHash);
+
+#define IPC_BEGIN_MESSAGE_MAP(class_name, msg)                   \
+  {                                                              \
+    using _IpcMessageHandlerClass [[maybe_unused]] = class_name; \
+    [[maybe_unused]] void* param__ = nullptr;                    \
+    const IPC::Message& ipc_message__ = msg;                     \
+    switch (ipc_message__.type()) {
+
+#define IPC_BEGIN_MESSAGE_MAP_WITH_PARAM(class_name, msg, param) \
+  {                                                              \
+    using _IpcMessageHandlerClass [[maybe_unused]] = class_name; \
+    decltype(param) param__ = param;                             \
+    const IPC::Message& ipc_message__ = msg;                     \
+    switch (ipc_message__.type()) {
+
+#define IPC_MESSAGE_FORWARD(msg_class, obj, member_func)         \
+  case msg_class::ID: {                                          \
+    IPC_TASK_ANNOTATOR_CONTEXT(msg_class)                        \
+    if (!msg_class::Dispatch(&ipc_message__, obj, this, param__, \
+                             &member_func))                      \
+      ipc_message__.set_dispatch_error();                        \
+  } break;
+
+#define IPC_MESSAGE_HANDLER(msg_class, member_func) \
+  IPC_MESSAGE_FORWARD(msg_class, this, _IpcMessageHandlerClass::member_func)
+
+#define IPC_MESSAGE_FORWARD_DELAY_REPLY(msg_class, obj, member_func) \
+  case msg_class::ID: {                                              \
+    IPC_TASK_ANNOTATOR_CONTEXT(msg_class)                            \
+    if (!msg_class::DispatchDelayReply(&ipc_message__, obj, param__, \
+                                       &member_func))                \
+      ipc_message__.set_dispatch_error();                            \
+  } break;
+
+#define IPC_MESSAGE_HANDLER_DELAY_REPLY(msg_class, member_func)                \
+    IPC_MESSAGE_FORWARD_DELAY_REPLY(msg_class, this,                           \
+                                    _IpcMessageHandlerClass::member_func)
+
+#define IPC_MESSAGE_FORWARD_WITH_PARAM_DELAY_REPLY(msg_class, obj,         \
+                                                   member_func)            \
+  case msg_class::ID: {                                                    \
+    IPC_TASK_ANNOTATOR_CONTEXT(msg_class)                                  \
+    if (!msg_class::DispatchWithParamDelayReply(&ipc_message__, obj,       \
+                                                param__, &member_func))    \
+      ipc_message__.set_dispatch_error();                                  \
+  } break;
+
+#define IPC_MESSAGE_HANDLER_WITH_PARAM_DELAY_REPLY(msg_class, member_func)     \
+    IPC_MESSAGE_FORWARD_WITH_PARAM_DELAY_REPLY(                                \
+        msg_class, this, _IpcMessageHandlerClass::member_func)
+
+#define IPC_MESSAGE_HANDLER_GENERIC(msg_class, code) \
+  case msg_class::ID: {                              \
+    IPC_TASK_ANNOTATOR_CONTEXT(msg_class) { code; }  \
+  } break;
+
+#define IPC_REPLY_HANDLER(func)                                                \
+    case IPC_REPLY_ID: {                                                       \
+        func(ipc_message__);                                                   \
+      }                                                                        \
+      break;
+
+
+#define IPC_MESSAGE_UNHANDLED(code)                                            \
+    default: {                                                                 \
+        code;                                                                  \
+      }                                                                        \
+      break;
+
+#define IPC_END_MESSAGE_MAP() \
+  } \
+}
+
+// This corresponds to an enum value from IPCMessageStart.
+#define IPC_MESSAGE_CLASS(message) IPC_MESSAGE_ID_CLASS((message).type())
+
+// Deprecated legacy macro names.
+// TODO(mdempsky): Replace uses with generic names.
+
+#define IPC_MESSAGE_CONTROL0(msg) IPC_MESSAGE_CONTROL(msg)
+#define IPC_MESSAGE_CONTROL1(msg, a) IPC_MESSAGE_CONTROL(msg, a)
+#define IPC_MESSAGE_CONTROL2(msg, a, b) IPC_MESSAGE_CONTROL(msg, a, b)
+#define IPC_MESSAGE_CONTROL3(msg, a, b, c) IPC_MESSAGE_CONTROL(msg, a, b, c)
+#define IPC_MESSAGE_CONTROL4(msg, a, b, c, d) \
+  IPC_MESSAGE_CONTROL(msg, a, b, c, d)
+#define IPC_MESSAGE_CONTROL5(msg, a, b, c, d, e) \
+  IPC_MESSAGE_CONTROL(msg, a, b, c, d, e)
+
+#define IPC_MESSAGE_ROUTED0(msg) IPC_MESSAGE_ROUTED(msg)
+#define IPC_MESSAGE_ROUTED1(msg, a) IPC_MESSAGE_ROUTED(msg, a)
+#define IPC_MESSAGE_ROUTED2(msg, a, b) IPC_MESSAGE_ROUTED(msg, a, b)
+#define IPC_MESSAGE_ROUTED3(msg, a, b, c) IPC_MESSAGE_ROUTED(msg, a, b, c)
+#define IPC_MESSAGE_ROUTED4(msg, a, b, c, d) IPC_MESSAGE_ROUTED(msg, a, b, c, d)
+#define IPC_MESSAGE_ROUTED5(msg, a, b, c, d, e) \
+  IPC_MESSAGE_ROUTED(msg, a, b, c, d, e)
+
+#define IPC_SYNC_MESSAGE_CONTROL0_0(msg) IPC_SYNC_MESSAGE_CONTROL(msg, (), ())
+#define IPC_SYNC_MESSAGE_CONTROL0_1(msg, a) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (), (a))
+#define IPC_SYNC_MESSAGE_CONTROL0_2(msg, a, b) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (), (a, b))
+#define IPC_SYNC_MESSAGE_CONTROL0_3(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (), (a, b, c))
+#define IPC_SYNC_MESSAGE_CONTROL0_4(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (), (a, b, c, d))
+#define IPC_SYNC_MESSAGE_CONTROL1_0(msg, a) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a), ())
+#define IPC_SYNC_MESSAGE_CONTROL1_1(msg, a, b) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a), (b))
+#define IPC_SYNC_MESSAGE_CONTROL1_2(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a), (b, c))
+#define IPC_SYNC_MESSAGE_CONTROL1_3(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a), (b, c, d))
+#define IPC_SYNC_MESSAGE_CONTROL1_4(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a), (b, c, d, e))
+#define IPC_SYNC_MESSAGE_CONTROL2_0(msg, a, b) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b), ())
+#define IPC_SYNC_MESSAGE_CONTROL2_1(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b), (c))
+#define IPC_SYNC_MESSAGE_CONTROL2_2(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b), (c, d))
+#define IPC_SYNC_MESSAGE_CONTROL2_3(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b), (c, d, e))
+#define IPC_SYNC_MESSAGE_CONTROL2_4(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b), (c, d, e, f))
+#define IPC_SYNC_MESSAGE_CONTROL3_0(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c), ())
+#define IPC_SYNC_MESSAGE_CONTROL3_1(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c), (d))
+#define IPC_SYNC_MESSAGE_CONTROL3_2(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c), (d, e))
+#define IPC_SYNC_MESSAGE_CONTROL3_3(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c), (d, e, f))
+#define IPC_SYNC_MESSAGE_CONTROL3_4(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c), (d, e, f, g))
+#define IPC_SYNC_MESSAGE_CONTROL4_0(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d), ())
+#define IPC_SYNC_MESSAGE_CONTROL4_1(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d), (e))
+#define IPC_SYNC_MESSAGE_CONTROL4_2(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d), (e, f))
+#define IPC_SYNC_MESSAGE_CONTROL4_3(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d), (e, f, g))
+#define IPC_SYNC_MESSAGE_CONTROL4_4(msg, a, b, c, d, e, f, g, h) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d), (e, f, g, h))
+#define IPC_SYNC_MESSAGE_CONTROL5_0(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), ())
+#define IPC_SYNC_MESSAGE_CONTROL5_1(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f))
+#define IPC_SYNC_MESSAGE_CONTROL5_2(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g))
+#define IPC_SYNC_MESSAGE_CONTROL5_3(msg, a, b, c, d, e, f, g, h) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g, h))
+#define IPC_SYNC_MESSAGE_CONTROL5_4(msg, a, b, c, d, e, f, g, h, i) \
+  IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g, h, i))
+
+#define IPC_SYNC_MESSAGE_ROUTED0_0(msg) IPC_SYNC_MESSAGE_ROUTED(msg, (), ())
+#define IPC_SYNC_MESSAGE_ROUTED0_1(msg, a) IPC_SYNC_MESSAGE_ROUTED(msg, (), (a))
+#define IPC_SYNC_MESSAGE_ROUTED0_2(msg, a, b) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b))
+#define IPC_SYNC_MESSAGE_ROUTED0_3(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b, c))
+#define IPC_SYNC_MESSAGE_ROUTED0_4(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b, c, d))
+#define IPC_SYNC_MESSAGE_ROUTED1_0(msg, a) IPC_SYNC_MESSAGE_ROUTED(msg, (a), ())
+#define IPC_SYNC_MESSAGE_ROUTED1_1(msg, a, b) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b))
+#define IPC_SYNC_MESSAGE_ROUTED1_2(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c))
+#define IPC_SYNC_MESSAGE_ROUTED1_3(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c, d))
+#define IPC_SYNC_MESSAGE_ROUTED1_4(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c, d, e))
+#define IPC_SYNC_MESSAGE_ROUTED2_0(msg, a, b) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), ())
+#define IPC_SYNC_MESSAGE_ROUTED2_1(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c))
+#define IPC_SYNC_MESSAGE_ROUTED2_2(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d))
+#define IPC_SYNC_MESSAGE_ROUTED2_3(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d, e))
+#define IPC_SYNC_MESSAGE_ROUTED2_4(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d, e, f))
+#define IPC_SYNC_MESSAGE_ROUTED3_0(msg, a, b, c) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), ())
+#define IPC_SYNC_MESSAGE_ROUTED3_1(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d))
+#define IPC_SYNC_MESSAGE_ROUTED3_2(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e))
+#define IPC_SYNC_MESSAGE_ROUTED3_3(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f))
+#define IPC_SYNC_MESSAGE_ROUTED3_4(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f, g))
+#define IPC_SYNC_MESSAGE_ROUTED3_5(msg, a, b, c, d, e, f, g, h) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f, g, h))
+#define IPC_SYNC_MESSAGE_ROUTED4_0(msg, a, b, c, d) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), ())
+#define IPC_SYNC_MESSAGE_ROUTED4_1(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e))
+#define IPC_SYNC_MESSAGE_ROUTED4_2(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f))
+#define IPC_SYNC_MESSAGE_ROUTED4_3(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f, g))
+#define IPC_SYNC_MESSAGE_ROUTED4_4(msg, a, b, c, d, e, f, g, h) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f, g, h))
+#define IPC_SYNC_MESSAGE_ROUTED5_0(msg, a, b, c, d, e) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), ())
+#define IPC_SYNC_MESSAGE_ROUTED5_1(msg, a, b, c, d, e, f) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f))
+#define IPC_SYNC_MESSAGE_ROUTED5_2(msg, a, b, c, d, e, f, g) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g))
+#define IPC_SYNC_MESSAGE_ROUTED5_3(msg, a, b, c, d, e, f, g, h) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g, h))
+#define IPC_SYNC_MESSAGE_ROUTED5_4(msg, a, b, c, d, e, f, g, h, i) \
+  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g, h, i))
+
 #endif  // IPC_IPC_MESSAGE_MACROS_H_
 
 // Clean up IPC_MESSAGE_START in this unguarded section so that the

@@ -79,6 +79,11 @@ void WrappableBase::SetWrapper(v8::Isolate* isolate,
 
 DeprecatedWrappableBase::DeprecatedWrappableBase() = default;
 
+// PPAPI revival: see gin/wrappable.h.
+NamedPropertyInterceptor* DeprecatedWrappableBase::GetNamedPropertyInterceptor() {
+  return nullptr;
+}
+
 DeprecatedWrappableBase::~DeprecatedWrappableBase() {
   wrapper_.Reset();
 }

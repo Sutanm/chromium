@@ -171,6 +171,11 @@ class GIN_EXPORT DeprecatedWrappableBase {
   DeprecatedWrappableBase(const DeprecatedWrappableBase&) = delete;
   DeprecatedWrappableBase& operator=(const DeprecatedWrappableBase&) = delete;
 
+  // PPAPI revival: Chromium 142 moved this virtual up to WrappableBase and
+  // dropped it here. content/renderer/pepper's MessageChannel and PluginObject
+  // still live on the deprecated wrappable path, so restore it.
+  virtual NamedPropertyInterceptor* GetNamedPropertyInterceptor();
+
  protected:
   DeprecatedWrappableBase();
   virtual ~DeprecatedWrappableBase();

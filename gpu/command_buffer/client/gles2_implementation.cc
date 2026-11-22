@@ -444,6 +444,14 @@ void GLES2Implementation::OnGpuControlReturnData(
   }
 }
 
+// PPAPI revival: restored from Chromium 87 (Flash Stage3D present path).
+void GLES2Implementation::SwapBuffers(uint64_t swap_id, GLbitfield flags) {
+  GPU_CLIENT_SINGLE_THREAD_CHECK();
+  GPU_CLIENT_LOG("[" << GetLogPrefix() << "] glSwapBuffers()");
+  helper_->SwapBuffers(swap_id, flags);
+  helper_->CommandBufferHelper::Flush();
+}
+
 void GLES2Implementation::FreeSharedMemory(void* mem) {
   mapped_memory_->FreePendingToken(mem, helper_->InsertToken());
 }

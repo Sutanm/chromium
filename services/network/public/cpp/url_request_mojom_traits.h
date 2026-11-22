@@ -292,6 +292,10 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
       const network::ResourceRequest& request) {
     return request.originated_from_service_worker;
   }
+  static bool skip_orb(const network::ResourceRequest& request) {
+    return request.skip_orb;
+  }
+
   static bool skip_service_worker(const network::ResourceRequest& request) {
     return request.skip_service_worker;
   }

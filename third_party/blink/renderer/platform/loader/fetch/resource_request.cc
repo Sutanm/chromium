@@ -104,6 +104,7 @@ ResourceRequestHead::ResourceRequestHead(const KURL& url)
       shared_storage_writable_eligible_(false),
       allow_stale_response_(false),
       skip_service_worker_(false),
+      skip_orb_(false),
       download_to_cache_only_(false),
       site_for_cookies_set_(false),
       is_form_submission_(false),
@@ -211,6 +212,7 @@ std::unique_ptr<ResourceRequest> ResourceRequestHead::CreateRedirectRequest(
   request->SetReferrerString(referrer);
   request->SetReferrerPolicy(new_referrer_policy);
   request->SetSkipServiceWorker(skip_service_worker);
+  request->SetSkipOrb(GetSkipOrb());
   request->redirect_info_ = RedirectInfo(
       redirect_info_ ? redirect_info_->original_url : Url(), Url());
 

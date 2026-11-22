@@ -190,6 +190,10 @@ class BLINK_PLATFORM_EXPORT WebURLRequest {
   bool GetSkipServiceWorker() const;
   void SetSkipServiceWorker(bool);
 
+  // 【移植】PPAPI 插件请求跳过 ORB。
+  bool GetSkipOrb() const;
+  void SetSkipOrb(bool);
+
   // True if corresponding AppCache group should be resetted.
   bool ShouldResetAppCache() const;
   void SetShouldResetAppCache(bool);

@@ -20,6 +20,15 @@ source_set("base") {
   # is a roll-up target which is part of the //media component. Most other DEPs
   # should be using //media and not directly DEP this roll-up target.
   visibility = media_subcomponent_deps
+  # PPAPI revival visibility
+  visibility += [
+    "//ppapi:ppapi_unittests",
+    "//ppapi/host:host",
+    "//ppapi/proxy:proxy",
+    "//ppapi/proxy:ipc",
+    "//ppapi/shared_impl:shared_impl",
+    "//ppapi/shared_impl:common",
+  ]
   visibility += [ "//media" ]
 
   if (!enable_library_cdms) {

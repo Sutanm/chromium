@@ -933,6 +933,18 @@ error::Error GLES2DecoderPassthroughImpl::DoCopyTexSubImage3D(GLenum target,
   return error::kNoError;
 }
 
+// PPAPI revival: restored from Chromium 87. In 87 this blitted the emulated
+// back buffer into the emulated front buffer; here FB 0 is bound directly to the
+// compositor-visible SharedImage, so no copy is required — the swap only has to
+// exist so that Flash's present() has a command to issue and the client's
+// command stream stays in sync.
+error::Error GLES2DecoderPassthroughImpl::DoSwapBuffers(uint64_t swap_id,
+                                                        GLbitfield flags) {
+  VLOG(1) << "GLES2DecoderPassthroughImpl::DoSwapBuffers id=" << swap_id
+          << " flags=" << flags;
+  return error::kNoError;
+}
+
 error::Error GLES2DecoderPassthroughImpl::DoCreateProgram(GLuint client_id) {
   return CreateHelper(client_id, &resources_->program_id_map,
                       [this]() { return api()->glCreateProgramFn(); });

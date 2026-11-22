@@ -158,6 +158,15 @@
 #define BUILDFLAG_INTERNAL_IS_ANDROID() (0)
 #endif
 
+// PPAPI revival compat: NaCl buildflags were removed in M140+; the vendored
+// PPAPI sources still use BUILDFLAG(IS_NACL) / BUILDFLAG(IS_MINIMAL_TOOLCHAIN).
+#ifndef BUILDFLAG_INTERNAL_IS_NACL
+#define BUILDFLAG_INTERNAL_IS_NACL() (0)
+#endif
+#ifndef BUILDFLAG_INTERNAL_IS_MINIMAL_TOOLCHAIN
+#define BUILDFLAG_INTERNAL_IS_MINIMAL_TOOLCHAIN() (0)
+#endif
+
 #if defined(OS_APPLE)
 #define BUILDFLAG_INTERNAL_IS_APPLE() (1)
 #else

@@ -336,6 +336,11 @@ struct URLRequest {
   // about this.
   bool skip_service_worker;
 
+  // 【移植】BaoFlashBrowser：让这条请求跳过 Opaque Response Blocking。
+  // 只由 PPAPI 插件（Flash 的 URLLoader）设置；页面 JS 的请求保持默认 false，
+  // ORB 保护完整保留。详见 content/renderer/pepper/pepper_url_loader_host.cc。
+  bool skip_orb = false;
+
   // https://fetch.spec.whatwg.org/#concept-request-mode
   // Used mainly by CORS handling (out-of-blink CORS), ORB, Service Worker.
   // CORS handling needs a proper origin (including a unique opaque origin).

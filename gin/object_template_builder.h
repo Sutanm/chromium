@@ -112,6 +112,10 @@ class GIN_EXPORT ObjectTemplateBuilder {
     return SetLazyDataPropertyImpl(name, callback, data);
   }
 
+  // PPAPI revival: untagged named property interceptor for
+  // DeprecatedWrappable-based embedders (content/renderer/pepper).
+  ObjectTemplateBuilder& AddNamedPropertyInterceptor();
+
   template <WrappablePointerTag tag>
   ObjectTemplateBuilder& AddNamedPropertyInterceptor() {
     template_->SetHandler(v8::NamedPropertyHandlerConfiguration(

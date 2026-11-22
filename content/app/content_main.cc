@@ -117,7 +117,10 @@ bool IsSubprocess() {
       switches::kProcessType);
   return type == switches::kGpuProcess ||
          type == switches::kRendererProcess ||
-         type == switches::kUtilityProcess || type == switches::kZygoteProcess;
+         type == switches::kUtilityProcess ||
+         // PPAPI revival: the Flash plugin process is a content subprocess.
+         type == switches::kPpapiPluginProcess ||
+         type == switches::kZygoteProcess;
 }
 
 void CommonSubprocessInit() {

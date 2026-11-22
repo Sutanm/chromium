@@ -38,6 +38,7 @@ class SingleThreadTaskRunner;
 namespace IPC {
 
 class ChannelFactory;
+class MessageFilter;
 class UrgentMessageObserver;
 
 //-----------------------------------------------------------------------------
@@ -132,6 +133,11 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
   // Send a message asynchronously.  The message is routed to the background
   // thread where it is passed to the IPC::Channel's Send method.
   bool Send(Message* message) override;
+
+  // Adds |filter| to the proxy. Filters are called on the IPC thread before
+  // the listener sees a message.
+  void AddFilter(MessageFilter* filter);
+  void RemoveFilter(MessageFilter* filter);
 
   // Set the `UrgentMessageObserver` for the channel. Must be called on the
   // proxy thread before initialization.
@@ -278,6 +284,9 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
     void CreateChannel(std::unique_ptr<ChannelFactory> factory);
 
     // Methods called on the IO thread.
+    void AddFilter(scoped_refptr<MessageFilter> filter);
+    void RemoveFilter(scoped_refptr<MessageFilter> filter);
+    void OnAddFilter();
     void OnSendMessage(std::unique_ptr<Message> message_ptr);
 
     // Methods called on the listener thread.
@@ -317,6 +326,10 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
 
     // Lock for pending_io_thread_interfaces_ (formerly for pending_filters_)
     base::Lock pending_filters_lock_;
+    std::vector<scoped_refptr<MessageFilter>> filters_
+        GUARDED_BY(pending_filters_lock_);
+    std::vector<scoped_refptr<MessageFilter>> pending_filters_
+        GUARDED_BY(pending_filters_lock_);
 
     // Cached copy of the peer process ID. Set on IPC but read on both IPC and
     // listener threads.

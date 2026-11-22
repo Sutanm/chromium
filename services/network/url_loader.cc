@@ -447,6 +447,7 @@ URLLoader::URLLoader(
           url_loader_network_observer_.get()),
       has_fetch_streaming_upload_body_(
           url_loader_util::HasFetchStreamingUploadBody(request)),
+      skip_orb_(request.skip_orb),
       accept_ch_frame_interceptor_(AcceptCHFrameInterceptor::MaybeCreate(
           std::move(accept_ch_frame_observer),
           request.trusted_params ? request.trusted_params->enabled_client_hints
@@ -1311,7 +1312,8 @@ void URLLoader::ContinueOnResponseStarted() {
 
   // Figure out if we need to sniff (for MIME type detection or for Opaque
   // Response Blocking / ORB).
-  if (factory_params_->is_orb_enabled) {
+  // 【移植】PPAPI 插件请求带 skip_orb 标记，直接跳过 ORB 分析。
+  if (factory_params_->is_orb_enabled && !skip_orb_) {
     // TODO(ricea): Make ORB and ReadAndDiscardBody work together if necessary.
     CHECK(!(options_ & mojom::kURLLoadOptionReadAndDiscardBody))
         << "ORB is incompatible with the ReadAndDiscardBody option";

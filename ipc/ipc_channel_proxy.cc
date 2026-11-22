@@ -4,6 +4,9 @@
 
 #include "ipc/ipc_channel_proxy.h"
 
+#include <algorithm>
+#include "ipc/message_filter.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -72,7 +75,42 @@ void ChannelProxy::Context::CreateChannel(
   }
 }
 
+void ChannelProxy::Context::AddFilter(scoped_refptr<MessageFilter> filter) {
+  base::AutoLock filter_lock(pending_filters_lock_);
+  if (channel_)
+    filter->OnFilterAdded(channel_.get());
+  else
+    pending_filters_.push_back(filter);
+  filters_.push_back(filter);
+}
+
+void ChannelProxy::Context::RemoveFilter(scoped_refptr<MessageFilter> filter) {
+  {
+    base::AutoLock filter_lock(pending_filters_lock_);
+    filters_.erase(std::remove(filters_.begin(), filters_.end(), filter),
+                   filters_.end());
+    pending_filters_.erase(
+        std::remove(pending_filters_.begin(), pending_filters_.end(), filter),
+        pending_filters_.end());
+  }
+  filter->OnFilterRemoved();
+}
+
+void ChannelProxy::Context::OnAddFilter() {
+  std::vector<scoped_refptr<MessageFilter>> pending;
+  {
+    base::AutoLock filter_lock(pending_filters_lock_);
+    pending.swap(pending_filters_);
+  }
+  for (const auto& filter : pending)
+    filter->OnFilterAdded(channel_.get());
+}
 bool ChannelProxy::Context::TryFilters(const Message& message) {
+  base::AutoLock filter_lock(pending_filters_lock_);
+  for (const auto& filter : filters_) {
+    if (filter->OnMessageReceived(message))
+      return true;
+  }
   return false;
 }
 
@@ -118,6 +156,14 @@ void ChannelProxy::Context::OnChannelConnected(int32_t peer_pid) {
     peer_pid_ = peer_pid;
   }
 
+  {
+    base::AutoLock filter_lock(pending_filters_lock_);
+    for (const auto& filter : filters_)
+      filter->OnChannelConnected(peer_pid);
+  }
+
+  OnAddFilter();
+
   // See above comment about using default_listener_task_runner_ here.
   default_listener_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&Context::OnDispatchConnected, this));
@@ -125,6 +171,12 @@ void ChannelProxy::Context::OnChannelConnected(int32_t peer_pid) {
 
 // Called on the IPC::Channel thread
 void ChannelProxy::Context::OnChannelError() {
+  {
+    base::AutoLock filter_lock(pending_filters_lock_);
+    for (const auto& filter : filters_)
+      filter->OnChannelError();
+  }
+
   // See above comment about using default_listener_task_runner_ here.
   default_listener_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&Context::OnDispatchError, this));
@@ -159,6 +211,16 @@ void ChannelProxy::Context::OnChannelClosed() {
   // would result in this branch being taken.
   if (!channel_)
     return;
+
+  {
+    base::AutoLock filter_lock(pending_filters_lock_);
+    for (const auto& filter : filters_) {
+      filter->OnChannelClosing();
+      filter->OnFilterRemoved();
+    }
+    filters_.clear();
+    pending_filters_.clear();
+  }
 
   ClearChannel();
 
@@ -379,6 +441,17 @@ void ChannelProxy::Close() {
   }
 }
 
+void ChannelProxy::AddFilter(MessageFilter* filter) {
+  context_->ipc_task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&Context::AddFilter, context_,
+                                scoped_refptr<MessageFilter>(filter)));
+}
+
+void ChannelProxy::RemoveFilter(MessageFilter* filter) {
+  context_->ipc_task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&Context::RemoveFilter, context_,
+                                scoped_refptr<MessageFilter>(filter)));
+}
 bool ChannelProxy::Send(Message* message) {
   DCHECK(!message->is_sync()) << "Need to use IPC::SyncChannel";
   SendInternal(message);

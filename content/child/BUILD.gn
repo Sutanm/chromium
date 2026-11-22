@@ -26,6 +26,8 @@ target(link_target_type, "child") {
     "//content/public/child:child_sources",
     "//content/renderer/*",
     "//content/utility/*",
+  
+    "//content/ppapi_plugin/*",
   ]
   if (is_android) {
     # See comment in content/app/BUILD.gn above content_app_deps.
@@ -33,6 +35,8 @@ target(link_target_type, "child") {
   }
 
   sources = [
+    "browser_font_resource_trusted.cc",
+    "browser_font_resource_trusted.h",
     "assert_matching_enums.cc",
     "blink_platform_impl.cc",
     "blink_platform_impl.h",

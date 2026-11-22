@@ -71,6 +71,7 @@ namespace {
   DO_FIELD(cors_preflight_policy) __VA_ARGS__                      \
   DO_FIELD(originated_from_service_worker) __VA_ARGS__             \
   DO_FIELD(skip_service_worker) __VA_ARGS__                        \
+  DO_FIELD(skip_orb) __VA_ARGS__                                   \
   DO_FIELD(mode) __VA_ARGS__                                       \
   DO_FIELD(required_ip_address_space) __VA_ARGS__                  \
   DO_FIELD(credentials_mode) __VA_ARGS__                           \

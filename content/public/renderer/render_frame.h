@@ -97,6 +97,9 @@ class CONTENT_EXPORT RenderFrame :
   // Returns the RenderFrame associated with the main frame of the WebView.
   // See `blink::WebView::MainFrame()`. Note that this will be null when
   // the main frame in this process is a remote frame.
+  // PPAPI revival: routing id accessor.
+  virtual int GetRoutingID() = 0;
+
   virtual RenderFrame* GetMainRenderFrame() = 0;
 
   // Return the RenderAccessibility associated with this frame.

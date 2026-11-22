@@ -75,7 +75,11 @@ enum WrappablePointerTag : uint16_t {
   kElectronApp,                         // electron::api::App
   kElectronSession,                     // electron::api::Session
   kElectronEvent,                       // gin_helper::internal::Event
-  kLastPointerTag = kElectronEvent,
+
+  // PPAPI revival (content/renderer/pepper).
+  kPepperMessageChannel,                // content::PepperMessageChannel
+  kPepperPluginObject,                  // content::PepperPluginObject
+  kLastPointerTag = kPepperPluginObject,
 };
 
 static_assert(kLastPointerTag <

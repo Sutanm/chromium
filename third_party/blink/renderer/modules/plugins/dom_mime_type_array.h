@@ -48,7 +48,12 @@ class DOMMimeTypeArray final : public ScriptWrappable {
   void Trace(Visitor*) const override;
 
  private:
-  HeapVector<Member<DOMMimeType>> dom_mime_types_;
+  // 【移植】同 dom_plugin_array.cc：恢复按真实 PluginData 枚举 mime 类型。
+  void EnsureMimeTypes() const;
+
+  Member<LocalDOMWindow> window_;
+  mutable HeapVector<Member<DOMMimeType>> dom_mime_types_;
+  mutable bool mime_types_initialized_ = false;
 };
 
 }  // namespace blink

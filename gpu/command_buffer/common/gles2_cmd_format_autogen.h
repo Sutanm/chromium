@@ -16833,4 +16833,50 @@ static_assert(offsetof(PolygonOffsetClampEXT, units) == 8,
 static_assert(offsetof(PolygonOffsetClampEXT, clamp) == 12,
               "offset of PolygonOffsetClampEXT clamp should be 12");
 
+// PPAPI revival: restored from Chromium 87 for Flash Stage3D present().
+struct SwapBuffers {
+  typedef SwapBuffers ValueType;
+  static const CommandId kCmdId = kSwapBuffers;
+  static const cmd::ArgFlags kArgFlags = cmd::kFixed;
+  static const uint8_t cmd_flags = CMD_FLAG_SET_TRACE_LEVEL(3);
+
+  static uint32_t ComputeSize() {
+    return static_cast<uint32_t>(sizeof(ValueType));  // NOLINT
+  }
+
+  void SetHeader() { header.SetCmd<ValueType>(); }
+
+  void Init(GLuint64 _swap_id, GLbitfield _flags) {
+    SetHeader();
+    GLES2Util::MapUint64ToTwoUint32(static_cast<uint64_t>(_swap_id), &swap_id_0,
+                                    &swap_id_1);
+    flags = _flags;
+  }
+
+  void* Set(void* cmd, GLuint64 _swap_id, GLbitfield _flags) {
+    static_cast<ValueType*>(cmd)->Init(_swap_id, _flags);
+    return NextCmdAddress<ValueType>(cmd);
+  }
+
+  GLuint64 swap_id() const volatile {
+    return static_cast<GLuint64>(
+        GLES2Util::MapTwoUint32ToUint64(swap_id_0, swap_id_1));
+  }
+
+  gpu::CommandHeader header;
+  uint32_t swap_id_0;
+  uint32_t swap_id_1;
+  GLbitfield flags;
+};
+
+static_assert(sizeof(SwapBuffers) == 16, "size of SwapBuffers should be 16");
+static_assert(offsetof(SwapBuffers, header) == 0,
+              "offset of SwapBuffers header should be 0");
+static_assert(offsetof(SwapBuffers, swap_id_0) == 4,
+              "offset of SwapBuffers swap_id_0 should be 4");
+static_assert(offsetof(SwapBuffers, swap_id_1) == 8,
+              "offset of SwapBuffers swap_id_1 should be 8");
+static_assert(offsetof(SwapBuffers, flags) == 12,
+              "offset of SwapBuffers flags should be 12");
+
 #endif  // GPU_COMMAND_BUFFER_COMMON_GLES2_CMD_FORMAT_AUTOGEN_H_

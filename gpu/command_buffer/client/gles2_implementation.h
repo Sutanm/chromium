@@ -123,6 +123,12 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   void FreeSharedMemory(void*) override;
   GLboolean DidGpuSwitch(gl::GpuPreference* active_gpu) final;
 
+  // PPAPI revival: issues the glSwapBuffers command. Chromium removed it after
+  // PPAPI (and PNaCl) swapchain support was deleted; Flash's Stage3D present
+  // path still needs it, so it is restored here (not part of GLES2Interface,
+  // to avoid touching every implementation of that interface).
+  void SwapBuffers(uint64_t swap_id, GLbitfield flags);
+
   // Include the auto-generated part of this class. We split this because
   // it means we can easily edit the non-auto generated parts right here in
   // this file instead of having to edit some template or the code generator.

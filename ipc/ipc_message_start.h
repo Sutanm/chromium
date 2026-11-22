@@ -13,6 +13,7 @@
 // for all new work.
 enum IPCMessageStart {
   TestMsgStart,
+  PpapiMsgStart,
   LastIPCMsgStart  // Must come last.
 };
 

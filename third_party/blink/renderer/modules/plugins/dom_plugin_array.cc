@@ -52,16 +52,40 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
 }
 }  // namespace
 
-DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
-  if (IsPdfViewerAvailable()) {
-    // See crbug.com/1164635 and https://github.com/whatwg/html/pull/6738.
-    // To reduce fingerprinting and make plugins/mimetypes more
-    // interoperable, this is the spec'd, hard-coded list of plugins:
+DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {}
+
+// 【移植】恢复 Chromium 87 的 PluginData 枚举，让 PPAPI Flash 重新出现在
+// navigator.plugins / navigator.mimeTypes 里。
+void DOMPluginArray::EnsurePlugins() const {
+  if (plugins_initialized_)
+    return;
+  plugins_initialized_ = true;
+
+  PluginData* data = GetPluginData();
+  bool has_pdf = false;
+  if (data) {
+    data->UpdatePluginList();
+    for (const Member<PluginInfo>& info : data->Plugins()) {
+      dom_plugins_.push_back(MakeGarbageCollected<DOMPlugin>(window_, *info));
+    }
+    for (const Member<MimeClassInfo>& mime : data->Mimes()) {
+      if (mime->Type() == "application/pdf") {
+        has_pdf = true;
+        break;
+      }
+    }
+  }
+
+  if (!dom_plugins_.empty())
+    return;
+
+  // 没有真实插件时，仍给出 spec 规定的 PDF 假列表。
+  if (has_pdf) {
     Vector<String> plugins{"PDF Viewer", "Chrome PDF Viewer",
                            "Chromium PDF Viewer", "Microsoft Edge PDF Viewer",
                            "WebKit built-in PDF"};
     for (auto name : plugins) {
-      dom_plugins_.push_back(MakeFakePlugin(name, window));
+      dom_plugins_.push_back(MakeFakePlugin(name, window_));
     }
   }
 }
@@ -73,10 +97,12 @@ void DOMPluginArray::Trace(Visitor* visitor) const {
 }
 
 unsigned DOMPluginArray::length() const {
+  EnsurePlugins();
   return dom_plugins_.size();
 }
 
 DOMPlugin* DOMPluginArray::item(unsigned index) {
+  EnsurePlugins();
   if (index >= dom_plugins_.size()) {
     return nullptr;
   }
@@ -84,6 +110,7 @@ DOMPlugin* DOMPluginArray::item(unsigned index) {
 }
 
 DOMPlugin* DOMPluginArray::namedItem(const AtomicString& property_name) {
+  EnsurePlugins();
   for (const auto& plugin : dom_plugins_) {
     if (plugin->name() == property_name) {
       return plugin.Get();
@@ -94,6 +121,7 @@ DOMPlugin* DOMPluginArray::namedItem(const AtomicString& property_name) {
 
 void DOMPluginArray::NamedPropertyEnumerator(Vector<String>& property_names,
                                              ExceptionState&) const {
+  EnsurePlugins();
   property_names.ReserveInitialCapacity(dom_plugins_.size());
   for (const auto& plugin : dom_plugins_) {
     property_names.UncheckedAppend(plugin->name());
@@ -111,6 +139,8 @@ void DOMPluginArray::refresh(bool reload) {
   if (!window_) {
     return;
   }
+  dom_plugins_.clear();
+  plugins_initialized_ = false;
   PluginData::RefreshBrowserSidePluginCache();
   if (PluginData* data = GetPluginData()) {
     data->ResetPluginData();

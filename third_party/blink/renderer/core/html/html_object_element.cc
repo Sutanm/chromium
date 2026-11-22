@@ -134,6 +134,23 @@ void HTMLObjectElement::ParametersForPlugin(PluginParameters& plugin_params) {
   // Some plugins don't understand the "data" attribute of the OBJECT tag (i.e.
   // Real and WMP require "src" attribute).
   plugin_params.MapDataParamToSrc();
+
+  // PPAPI revival: upstream deleted the <param> collection together with plugin
+  // support (the comment above still promises it). Flash reads its whole
+  // configuration - flashvars, movie, quality, allowscriptaccess, wmode - from
+  // the plugin argument list, so without this loop every <param> child is
+  // dropped and, concretely, 4399 hxjy's MainLoader never receives the
+  // flashvars `base` it builds every relative asset URL from: it then asks for
+  // "nullassets/config/revisions.dat", gets 404 in a loop, and the game never
+  // leaves the loader. Appended last so <param> wins over the element attribute,
+  // matching the 87 behaviour this comment describes.
+  for (Node* child = firstChild(); child; child = child->nextSibling()) {
+    auto* param = DynamicTo<HTMLParamElement>(child);
+    if (!param)
+      continue;
+    plugin_params.AppendNameWithValue(param->GetName().GetString(),
+                                      param->Value().GetString());
+  }
 }
 
 bool HTMLObjectElement::HasFallbackContent() const {

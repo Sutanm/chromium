@@ -1,0 +1,6 @@
+# Stub: NaCl removed in M140; the vendored PPAPI code still includes this path.
+is_nacl = false
+is_nacl_glibc = false
+is_nacl_irt = false
+is_nacl_nonsfi = false
+is_minimal_toolchain = false

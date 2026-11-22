@@ -39,6 +39,109 @@ NamedPropertyInterceptor* NamedInterceptorFromV8(v8::Isolate* isolate,
   return base->GetNamedPropertyInterceptor();
 }
 
+// PPAPI revival: untagged (DeprecatedWrappable) variant of the named property
+// plumbing above. Chromium 142 deleted it together with the deprecated path.
+DeprecatedWrappableBase* DeprecatedWrappableFromV8(v8::Isolate* isolate,
+                                                   v8::Local<v8::Value> val) {
+  if (!val->IsObject()) {
+    return nullptr;
+  }
+  v8::Local<v8::Object> obj = val.As<v8::Object>();
+  if (!DeprecatedWrapperInfo::From(obj)) {
+    return nullptr;
+  }
+  // PPAPI revival: the wrappable slot is written with the kDeprecatedData tag by
+  // gin::DeprecatedWrappableBase, but untagged by Electron's own
+  // gin_helper::WrappableBase. V8 returns nullptr on a tag mismatch instead of
+  // failing, so a tag-only read silently breaks every named-property lookup on
+  // a Chromium-side wrappable (that is what killed the Flash script object).
+  auto* base = static_cast<DeprecatedWrappableBase*>(
+      obj->GetAlignedPointerFromInternalField(kEncodedValueIndex,
+                                              kDeprecatedData));
+  if (!base) {
+    base = static_cast<DeprecatedWrappableBase*>(
+        obj->GetAlignedPointerFromInternalField(kEncodedValueIndex));
+  }
+  return base;
+}
+
+NamedPropertyInterceptor* DeprecatedNamedInterceptorFromV8(
+    v8::Isolate* isolate,
+    v8::Local<v8::Value> val) {
+  DeprecatedWrappableBase* base = DeprecatedWrappableFromV8(isolate, val);
+  return base ? base->GetNamedPropertyInterceptor() : nullptr;
+}
+
+v8::Intercepted DeprecatedNamedPropertyGetter(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  NamedPropertyInterceptor* interceptor =
+      DeprecatedNamedInterceptorFromV8(isolate, info.HolderV2());
+  if (!interceptor) {
+    return v8::Intercepted::kNo;
+  }
+  std::string name;
+  ConvertFromV8(isolate, property, &name);
+  v8::Local<v8::Value> result = interceptor->GetNamedProperty(isolate, name);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
+}
+
+v8::Intercepted DeprecatedNamedPropertySetter(
+    v8::Local<v8::Name> property,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  NamedPropertyInterceptor* interceptor =
+      DeprecatedNamedInterceptorFromV8(isolate, info.HolderV2());
+  if (!interceptor) {
+    return v8::Intercepted::kNo;
+  }
+  std::string name;
+  ConvertFromV8(isolate, property, &name);
+  return interceptor->SetNamedProperty(isolate, name, value)
+             ? v8::Intercepted::kYes
+             : v8::Intercepted::kNo;
+}
+
+v8::Intercepted DeprecatedNamedPropertyQuery(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  NamedPropertyInterceptor* interceptor =
+      DeprecatedNamedInterceptorFromV8(isolate, info.HolderV2());
+  if (!interceptor) {
+    return v8::Intercepted::kNo;
+  }
+  std::string name;
+  ConvertFromV8(isolate, property, &name);
+  if (!interceptor->GetNamedProperty(isolate, name).IsEmpty()) {
+    info.GetReturnValue().Set(v8::None);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
+}
+
+void DeprecatedNamedPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  NamedPropertyInterceptor* interceptor =
+      DeprecatedNamedInterceptorFromV8(isolate, info.HolderV2());
+  if (!interceptor) {
+    return;
+  }
+  v8::Local<v8::Value> properties;
+  if (!TryConvertToV8(isolate, interceptor->EnumerateNamedProperties(isolate),
+                      &properties)) {
+    return;
+  }
+  info.GetReturnValue().Set(properties.As<v8::Array>());
+}
+
 v8::Intercepted ObjectTemplateBuilder::NamedPropertyGetterImpl(
     WrappablePointerTag tag,
     v8::Local<v8::Name> property,
@@ -192,6 +295,14 @@ v8::Local<v8::ObjectTemplate> ObjectTemplateBuilder::Build() {
   template_.Clear();
   constructor_template_.Clear();
   return result;
+}
+
+ObjectTemplateBuilder& ObjectTemplateBuilder::AddNamedPropertyInterceptor() {
+  template_->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      &DeprecatedNamedPropertyGetter, &DeprecatedNamedPropertySetter,
+      &DeprecatedNamedPropertyQuery, nullptr, &DeprecatedNamedPropertyEnumerator,
+      v8::Local<v8::Value>(), v8::PropertyHandlerFlags::kOnlyInterceptStrings));
+  return *this;
 }
 
 }  // namespace gin

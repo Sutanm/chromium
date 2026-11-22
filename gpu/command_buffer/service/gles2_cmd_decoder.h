@@ -40,6 +40,7 @@ class GLSurface;
 namespace gpu {
 
 class DecoderClient;
+struct Mailbox;
 
 namespace gles2 {
 
@@ -184,6 +185,14 @@ class GPU_GLES2_EXPORT GLES2Decoder : public CommonDecoder,
 
   // Gets the GLES2 Util which holds info.
   virtual GLES2Util* GetGLES2Util() = 0;
+
+  // PPAPI revival: attaches a SharedImage to this context's default framebuffer
+  // (used by PPB_Graphics3D for Flash Stage3D). An empty mailbox detaches.
+  virtual void SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
+                                                int samples,
+                                                bool preserve,
+                                                bool needs_depth,
+                                                bool needs_stencil) = 0;
 
   // Restore States.
   virtual void RestoreDeviceWindowRectangles() const = 0;

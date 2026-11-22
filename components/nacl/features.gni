@@ -1,0 +1,6 @@
+# Stub: NaCl removed in M140+. Provide the symbols the vendored ppapi Build files use.
+declare_args() {
+  enable_nacl = false
+  checkout_nacl = false
+  nacl_glibc = false
+}

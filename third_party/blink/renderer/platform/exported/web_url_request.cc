@@ -310,6 +310,14 @@ void WebURLRequest::SetSkipServiceWorker(bool skip_service_worker) {
   resource_request_->SetSkipServiceWorker(skip_service_worker);
 }
 
+bool WebURLRequest::GetSkipOrb() const {
+  return resource_request_->GetSkipOrb();
+}
+
+void WebURLRequest::SetSkipOrb(bool skip_orb) {
+  resource_request_->SetSkipOrb(skip_orb);
+}
+
 network::mojom::RequestMode WebURLRequest::GetMode() const {
   return resource_request_->GetMode();
 }

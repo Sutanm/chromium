@@ -372,6 +372,18 @@ void GLES2CommandBufferStub::OnGpuSwitched() {
   client().OnGpuSwitched();
 }
 
+void GLES2CommandBufferStub::OnSetDefaultFramebufferSharedImage(
+    const Mailbox& mailbox,
+    int samples_count,
+    bool preserve,
+    bool needs_depth,
+    bool needs_stencil) {
+  if (gles2_decoder_) {
+    gles2_decoder_->SetDefaultFramebufferSharedImage(
+        mailbox, samples_count, preserve, needs_depth, needs_stencil);
+  }
+}
+
 void GLES2CommandBufferStub::CreateGpuFenceFromHandle(
     uint32_t gpu_fence_id,
     gfx::GpuFenceHandle handle) {

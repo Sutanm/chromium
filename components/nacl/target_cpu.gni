@@ -1,0 +1,3 @@
+# Stub: NaCl removed in M140.
+nacl_target_cpu = ""
+nacl_target_arch = ""

@@ -33,23 +33,44 @@
 
 namespace blink {
 
-DOMMimeTypeArray::DOMMimeTypeArray(LocalDOMWindow* window) {
-  if (window) {
-    dom_mime_types_ = NavigatorPlugins::plugins(*window->navigator())
-                          ->GetFixedMimeTypeArray();
+DOMMimeTypeArray::DOMMimeTypeArray(LocalDOMWindow* window) : window_(window) {}
+
+// 【移植】恢复按真实 PluginData 枚举 mime 类型（140 原先只返回 PDF 假列表）。
+void DOMMimeTypeArray::EnsureMimeTypes() const {
+  if (mime_types_initialized_)
+    return;
+  mime_types_initialized_ = true;
+
+  if (!window_ || !window_->GetFrame())
+    return;
+  PluginData* data = window_->GetFrame()->GetPluginData();
+  if (!data)
+    return;
+  data->UpdatePluginList();
+  for (const Member<MimeClassInfo>& mime : data->Mimes()) {
+    dom_mime_types_.push_back(MakeGarbageCollected<DOMMimeType>(window_, *mime));
   }
+  if (!dom_mime_types_.empty())
+    return;
+
+  // 退回 PDF 假列表。
+  dom_mime_types_ =
+      NavigatorPlugins::plugins(*window_->navigator())->GetFixedMimeTypeArray();
 }
 
 void DOMMimeTypeArray::Trace(Visitor* visitor) const {
+  visitor->Trace(window_);
   visitor->Trace(dom_mime_types_);
   ScriptWrappable::Trace(visitor);
 }
 
 unsigned DOMMimeTypeArray::length() const {
+  EnsureMimeTypes();
   return dom_mime_types_.size();
 }
 
 DOMMimeType* DOMMimeTypeArray::item(unsigned index) {
+  EnsureMimeTypes();
   if (index >= dom_mime_types_.size()) {
     return nullptr;
   }
@@ -57,6 +78,7 @@ DOMMimeType* DOMMimeTypeArray::item(unsigned index) {
 }
 
 DOMMimeType* DOMMimeTypeArray::namedItem(const AtomicString& property_name) {
+  EnsureMimeTypes();
   for (const auto& mimetype : dom_mime_types_) {
     if (mimetype->type() == property_name) {
       return mimetype.Get();
@@ -67,6 +89,7 @@ DOMMimeType* DOMMimeTypeArray::namedItem(const AtomicString& property_name) {
 
 void DOMMimeTypeArray::NamedPropertyEnumerator(Vector<String>& property_names,
                                                ExceptionState&) const {
+  EnsureMimeTypes();
   property_names.ReserveInitialCapacity(dom_mime_types_.size());
   for (const auto& mimetype : dom_mime_types_) {
     property_names.UncheckedAppend(mimetype->type());

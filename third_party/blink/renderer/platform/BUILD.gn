@@ -586,6 +586,7 @@ component("platform") {
     "exported/mediastream/web_media_stream_track.cc",
     "exported/mediastream/web_platform_media_stream_source.cc",
     "exported/platform.cc",
+    "exported/web_font.cc",
     "exported/resource_load_info_notifier_wrapper.cc",
     "exported/url_conversion.cc",
     "exported/video_capture/web_video_capture_impl_manager.cc",

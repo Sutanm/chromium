@@ -5,6 +5,8 @@
 #ifndef CONTENT_BROWSER_PLUGIN_SERVICE_IMPL_H_
 #define CONTENT_BROWSER_PLUGIN_SERVICE_IMPL_H_
 
+#include "content/public/common/content_plugin_info.h"
+#include "content/browser/ppapi_plugin_process_host.h"
 #include <map>
 #include <optional>
 #include <vector>
@@ -88,6 +90,27 @@ class CONTENT_EXPORT PluginServiceImpl : public PluginService {
 
   void RegisterPlugins();
 
+ public:
+  // PPAPI revival: plugin process management removed in M140+.
+  PpapiPluginProcessHost* FindPpapiPluginProcess(
+      const base::FilePath& plugin_path,
+      const base::FilePath& profile_data_directory,
+      const std::optional<url::Origin>& origin_lock);
+  int CountPpapiPluginProcessesForProfile(
+      const base::FilePath& plugin_path,
+      const base::FilePath& profile_data_directory);
+  PpapiPluginProcessHost* FindOrStartPpapiPluginProcess(
+      int render_process_id,
+      const base::FilePath& plugin_path,
+      const base::FilePath& profile_data_directory,
+      const std::optional<url::Origin>& origin_lock);
+  void OpenChannelToPpapiPlugin(
+      int render_process_id,
+      const base::FilePath& plugin_path,
+      const base::FilePath& profile_data_directory,
+      const std::optional<url::Origin>& origin_lock,
+      PpapiPluginProcessHost::PluginClient* client);
+ private:
   std::vector<ContentPluginInfo> plugins_;
 
   int max_ppapi_processes_per_profile_ = kDefaultMaxPpapiProcessesPerProfile;
