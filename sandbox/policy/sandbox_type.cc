@@ -218,9 +218,8 @@ sandbox::mojom::Sandbox SandboxTypeFromCommandLine(
 #if BUILDFLAG(ENABLE_PPAPI)
   if (process_type == switches::kPpapiPluginProcess) {
 #if BUILDFLAG(IS_WIN)
-    // PPAPI sandboxing is not supported on Windows; the plugin process runs
-    // unsandboxed like it did before the PPAPI removal.
-    return Sandbox::kNoSandbox;
+    // Windows uses the utility sandbox as the base policy for Pepper.
+    return Sandbox::kUtility;
 #else
     return Sandbox::kPpapi;
 #endif

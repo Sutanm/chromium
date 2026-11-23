@@ -6,9 +6,7 @@
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/debugger.h"
-#include "base/containers/span.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/i18n/rtl.h"
 #include "base/path_service.h"
 #include "base/process/current_process.h"
@@ -74,12 +72,6 @@ namespace content {
 // Main function for starting the PPAPI plugin process.
 int PpapiPluginMain(MainFunctionParams parameters) {
   const base::CommandLine& command_line = *parameters.command_line;
-  {
-    constexpr std::string_view kMainMarker = "entered PpapiPluginMain";
-    base::WriteFile(base::FilePath(FILE_PATH_LITERAL(
-                        "D:\\electron-build\\ppapi-main.txt")),
-                    base::as_byte_span(kMainMarker));
-  }
 
 #if BUILDFLAG(IS_MAC)
   // Declare that this process has CPU security mitigations enabled (see

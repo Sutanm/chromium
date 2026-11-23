@@ -270,28 +270,17 @@ bool PpapiPluginProcessHost::Init(const ContentPluginInfo& info) {
   cmd_line->AppendSwitchASCII(
       switches::kPpapiSubpixelRenderingSetting,
       base::NumberToString(font_params.subpixel_rendering));
-
-  LOG(WARNING) << "Ppapi sandbox on Windows is not supported.";
 #endif
 
   if (!plugin_launcher.empty())
     cmd_line->PrependWrapper(plugin_launcher);
 
-
-#if BUILDFLAG(IS_WIN)
-  // PPAPI revival: the ppapi sandbox is not supported on Windows, so the child
-  // must be explicitly unsandboxed (otherwise
-  // sandbox::policy::SandboxTypeFromCommandLine() hits NOTREACHED()).
-  if (!cmd_line->HasSwitch(sandbox::policy::switches::kNoSandbox)) {
-    cmd_line->AppendSwitch(sandbox::policy::switches::kNoSandbox);
-  }
-#endif  // BUILDFLAG(IS_WIN)
-
   // On posix, only use the zygote if we are not using a plugin launcher -
   // having a plugin launcher means we need to use another process instead of
   // just forking the zygote.
   process_->Launch(
-      std::make_unique<PpapiPluginSandboxedProcessLauncherDelegate>(),
+      std::make_unique<PpapiPluginSandboxedProcessLauncherDelegate>(
+          permissions_.HasPermission(ppapi::PERMISSION_FLASH)),
       std::move(cmd_line), true);
   return true;
 }

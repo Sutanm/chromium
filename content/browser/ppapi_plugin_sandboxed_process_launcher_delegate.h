@@ -19,7 +19,7 @@ namespace content {
 class CONTENT_EXPORT PpapiPluginSandboxedProcessLauncherDelegate
     : public content::SandboxedProcessLauncherDelegate {
  public:
-  PpapiPluginSandboxedProcessLauncherDelegate() = default;
+  explicit PpapiPluginSandboxedProcessLauncherDelegate(bool is_flash);
 
   PpapiPluginSandboxedProcessLauncherDelegate(
       const PpapiPluginSandboxedProcessLauncherDelegate&) = delete;
@@ -34,10 +34,18 @@ class CONTENT_EXPORT PpapiPluginSandboxedProcessLauncherDelegate
 
   sandbox::mojom::Sandbox GetSandboxType() override;
 
+#if BUILDFLAG(IS_WIN)
+  std::string GetSandboxTag() override;
+  bool InitializeConfig(sandbox::TargetConfig* config) override;
+#endif
+
 #if BUILDFLAG(IS_MAC)
   bool DisclaimResponsibility() override;
   bool EnableCpuSecurityMitigations() override;
 #endif
+
+ private:
+  [[maybe_unused]] const bool is_flash_;
 };
 }  // namespace content
 
