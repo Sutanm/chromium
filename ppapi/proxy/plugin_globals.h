@@ -158,6 +158,7 @@ class PPAPI_PROXY_EXPORT PluginGlobals : public PpapiGlobals {
 
   // PpapiGlobals overrides.
   bool IsPluginGlobals() const override;
+  void PreCacheFontForFlash(const void* logfontw) override;
 
   static PluginGlobals* plugin_globals_;
 

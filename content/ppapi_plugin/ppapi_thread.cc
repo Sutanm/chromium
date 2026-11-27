@@ -44,10 +44,13 @@
 #include "ppapi/proxy/plugin_message_filter.h"
 #include "ppapi/proxy/ppapi_messages.h"
 #include "ppapi/proxy/resource_reply_thread_registrar.h"
+#include "third_party/blink/public/platform/web_font_render_style.h"
 #include "third_party/blink/public/web/blink.h"
+#include "third_party/skia/include/core/SkFontTypes.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
+#include "ui/gfx/font_render_params.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/win_util.h"
@@ -67,6 +70,46 @@ extern sandbox::TargetServices* g_target_services;
 static void WarmupWindowsLocales(const ppapi::PpapiPermissions& permissions) {
   ::GetUserDefaultLangID();
   ::GetUserDefaultLCID();
+}
+
+// The PPAPI plugin process has no WebView, so nothing ever calls
+// blink::WebFontRenderStyle::Set*() here and the globals keep their defaults.
+// Every glyph the plugin's Blink font stack draws would then use Skia's default
+// style rather than the user's ClearType configuration. Seed the style from the
+// system font render parameters while the process is still unsandboxed, since
+// the underlying SystemParametersInfo query needs Win32k.
+//
+// Note: LCD (subpixel) text is deliberately left off. Flash draws 12px CJK
+// glyphs whose 1px strokes would be split across the R/G/B channels, which
+// reads as broken strokes; grayscale matches the Chromium 84/87 output.
+static void SetupFontRenderStyle() {
+  gfx::FontRenderParams params =
+      gfx::GetFontRenderParams(gfx::FontRenderParamsQuery(), nullptr);
+
+  SkFontHinting hinting = SkFontHinting::kNormal;
+  switch (params.hinting) {
+    case gfx::FontRenderParams::HINTING_NONE:
+      hinting = SkFontHinting::kNone;
+      break;
+    case gfx::FontRenderParams::HINTING_SLIGHT:
+      hinting = SkFontHinting::kSlight;
+      break;
+    case gfx::FontRenderParams::HINTING_MEDIUM:
+      hinting = SkFontHinting::kNormal;
+      break;
+    case gfx::FontRenderParams::HINTING_FULL:
+      hinting = SkFontHinting::kFull;
+      break;
+  }
+
+  blink::WebFontRenderStyle::SetHinting(hinting);
+  blink::WebFontRenderStyle::SetAutoHint(params.autohinter);
+  blink::WebFontRenderStyle::SetUseBitmaps(params.use_bitmaps);
+  blink::WebFontRenderStyle::SetAntiAlias(params.antialiasing);
+  blink::WebFontRenderStyle::SetSubpixelRendering(
+      params.subpixel_rendering !=
+      gfx::FontRenderParams::SUBPIXEL_RENDERING_NONE);
+  blink::WebFontRenderStyle::SetSubpixelPositioning(params.subpixel_positioning);
 }
 
 #endif
@@ -214,6 +257,19 @@ void PpapiThread::SetActiveURL(const std::string& url) {
   GetContentClient()->SetActiveURL(GURL(url), std::string());
 }
 
+void PpapiThread::PreCacheFontForFlash(const void* logfontw) {
+#if BUILDFLAG(IS_WIN)
+  // Flash calls PPB_Flash.PreloadFontWin with a LOGFONTW for every font it is
+  // about to draw with. Handing it to the shared font cache is what makes that
+  // font's tables reachable from the sandboxed plugin process. Chromium 138
+  // removed this call chain (ppb_flash_thunk.cc was left with a no-op), so the
+  // bridge has to be restored for the interface to keep working.
+  ChildThreadImpl::PreCacheFont(*static_cast<const LOGFONT*>(logfontw));
+#else
+  (void)logfontw;
+#endif
+}
+
 PP_Resource PpapiThread::CreateBrowserFont(
     ppapi::proxy::Connection connection,
     PP_Instance instance,
@@ -332,6 +388,7 @@ void PpapiThread::OnLoadPlugin(const base::FilePath& path,
     sandbox::policy::WarmupRandomnessInfrastructure();
 
     WarmupWindowsLocales(permissions);
+    SetupFontRenderStyle();
 
     g_target_services->LowerToken();
   }

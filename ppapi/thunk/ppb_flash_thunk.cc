@@ -110,8 +110,7 @@ void PreLoadFontWin(const void* logfontw) {
   // There's no instance so we have to reach into the delegate without
   // thunking.
   ProxyAutoLock lock;
-  // Chromium 138 removed PreCacheFontForFlash(); nothing to do here.
-  (void)logfontw;
+  PpapiGlobals::Get()->PreCacheFontForFlash(logfontw);
 }
 
 PP_Bool IsRectTopmost(PP_Instance instance, const PP_Rect* rect) {

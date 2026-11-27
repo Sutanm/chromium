@@ -27,6 +27,13 @@ class PPAPI_PROXY_EXPORT PluginProxyDelegate {
   // Returns the language code of the current UI language.
   virtual std::string GetUILanguage() = 0;
 
+  // Flash asks the host to pre-load a font's tables before drawing with it
+  // (PPB_Flash.PreloadFontWin). Restored after Chromium 138 removed the hook
+  // together with the rest of Flash; without it Flash cannot reach system font
+  // tables from the sandboxed plugin process and falls back to SimSun on
+  // Chinese Windows.
+  virtual void PreCacheFontForFlash(const void* logfontw) = 0;
+
   // Sets the active url which is reported by breakpad.
   virtual void SetActiveURL(const std::string& url) = 0;
 

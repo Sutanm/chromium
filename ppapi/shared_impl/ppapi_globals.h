@@ -123,6 +123,13 @@ class PPAPI_SHARED_EXPORT PpapiGlobals {
   // in-process plugins.
   virtual base::TaskRunner* GetFileTaskRunner() = 0;
 
+  // Flash asks the host to pre-load a font's tables before it draws with that
+  // font (PPB_Flash.PreloadFontWin). Chromium 138 dropped this hook along with
+  // the rest of Flash; without it Flash cannot obtain system font tables under
+  // the PPAPI sandbox and silently falls back to SimSun on Chinese Windows.
+  // Empty default implementation keeps non-plugin globals unaffected.
+  virtual void PreCacheFontForFlash(const void* logfontw) {}
+
   virtual bool IsHostGlobals() const;
   virtual bool IsPluginGlobals() const;
 

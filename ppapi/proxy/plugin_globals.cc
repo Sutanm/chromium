@@ -239,5 +239,10 @@ bool PluginGlobals::IsPluginGlobals() const {
   return true;
 }
 
+void PluginGlobals::PreCacheFontForFlash(const void* logfontw) {
+  ProxyAutoUnlock unlock;
+  plugin_proxy_delegate_->PreCacheFontForFlash(logfontw);
+}
+
 }  // namespace proxy
 }  // namespace ppapi

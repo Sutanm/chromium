@@ -101,6 +101,7 @@ class PpapiThread : public ChildThreadImpl,
   IPC::Sender* GetBrowserSender() override;
   std::string GetUILanguage() override;
   void SetActiveURL(const std::string& url) override;
+  void PreCacheFontForFlash(const void* logfontw) override;
   PP_Resource CreateBrowserFont(ppapi::proxy::Connection connection,
                                 PP_Instance instance,
                                 const PP_BrowserFont_Trusted_Description& desc,
